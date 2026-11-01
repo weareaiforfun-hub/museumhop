@@ -8,7 +8,6 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "walk-matrix": "node scripts/build-walk-matrix.mjs",
-    "seed": "node scripts/seed-night.mjs",
     "check-access": "node scripts/check-access.mjs"
   },
   "dependencies": {

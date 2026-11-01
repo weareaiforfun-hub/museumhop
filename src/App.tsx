@@ -10,6 +10,7 @@ import { ActivityFeed, describe, SyncPill } from "./components/live";
 import { Timeline } from "./components/timeline";
 import { RouteStop } from "./components/route-stop";
 import { Crews } from "./components/crews";
+import exampleIdeas from "./data/route-ideas.json";
 import { Decide, REACTIONS, ReactionButtons, type ReactionKey } from "./components/decide";
 
 type Aside = "route" | "personal" | "ideas" | "decide" | "crews" | "activity";
@@ -147,6 +148,13 @@ export default function App() {
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
+  async function addExamples() {
+    if (!night?.night) return;
+    setBusy(true);
+    try { await sync!.rpc("na_add_examples", { p_night: night.night.id, p_ideas: exampleIdeas }); setToast("Added 4 example route ideas from fictional planners."); }
+    catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
+  }
   async function enter() {
     if (!sync || !name.trim()) return;
     setBusy(true); setError("");
@@ -170,7 +178,7 @@ export default function App() {
   }
   async function share() {
     if (!invite) { setNameDialog(true); return; }
-    try { await navigator.clipboard.writeText(location.origin + "/#night=" + invite); setToast("Invite link copied. Anyone with it can join and edit."); }
+    try { await navigator.clipboard.writeText(location.origin + location.pathname + "#night=" + invite); setToast("Invite link copied. Anyone with it can join and edit."); }
     catch { setToast("Copy the invitation from your browser address bar."); }
   }
 
@@ -211,7 +219,7 @@ export default function App() {
 
   return <main>
     <header className="topbar">
-      <a href="/" className="brand" aria-label="Night Atlas home"><span className="brand-icon"><Moon size={24} /></span><span>night<span className="brand-light">atlas</span><small>AMSTERDAM, AFTER HOURS</small></span></a>
+      <a href="./" className="brand" aria-label="Night Atlas home"><span className="brand-icon"><Moon size={24} /></span><span>night<span className="brand-light">atlas</span><small>AMSTERDAM, AFTER HOURS</small></span></a>
       <div className="event-date"><span className="live-dot" />SAT 7 NOV 2026<span className="date-divider" />19:00 — 02:00</div>
       <div className="header-actions">
         {invite && !identity && !loading && <button className="secondary join-button" onClick={() => setNameDialog(true)}>Join this night</button>}
@@ -281,7 +289,7 @@ export default function App() {
             onCopyShared={() => run(personalRouteOps(identity.night_id, userId, night!.mine, identity.display_name + "’s route", route, myRoute).ops)}
             onExplore={() => { setTarget("personal"); setView("Explore"); }}
             onPreview={() => { setAsideMode("ideas"); setPreviewId(night!.mine?.id || null); setFit((f) => f + 1); setView("Map"); }} toggle={viewToggle} />
-        : asideMode === "ideas" && night ? <RouteIdeas votes={data?.na_idea_votes ?? []} proposals={proposals} members={people} events={byId} previewId={previewId} onPreview={(id) => { setPreviewId(id); setFit((f) => f + 1); if (id) setView("Map"); }} onAdopt={adoptIdea} onSelect={pick} busy={busy} currentRoute={route} />
+        : asideMode === "ideas" && night ? <RouteIdeas votes={data?.na_idea_votes ?? []} onAddExamples={identity?.role === "organiser" && !night.members.some((m) => m.fictional) ? addExamples : undefined} proposals={proposals} members={people} events={byId} previewId={previewId} onPreview={(id) => { setPreviewId(id); setFit((f) => f + 1); if (id) setView("Map"); }} onAdopt={adoptIdea} onSelect={pick} busy={busy} currentRoute={route} />
         : asideMode === "decide" && data && night ? <Decide data={data} night={night} userId={userId} proposals={proposals} onPick={pick} onReact={(id, r) => react(id, r)}
             onDeadline={identity?.role === "organiser" ? (iso) => run([{ t: "update", table: "na_nights", id: night.night!.id, patch: { vote_deadline: iso } }]) : null}
             onVote={vote} onPreview={(p) => { setPreviewStops(p); if (p) setFit((f) => f + 1); }} onPropose={proposeMine}

@@ -40,6 +40,7 @@ export function describe(a: Activity, d: Data, n: Derived) {
     case "route_adopt": return `${who} used "${a.data.title}" as our route`;
     case "member_join": return `${a.data.name} joined the night`;
     case "crew_add": return `${who} started the crew ${a.data.name}`;
+    case "examples_added": return `${who} added ${a.data.count} example route ideas`;
     case "meetup_add": return `${who} proposed meeting at ${title}, ${a.data.at}`;
     default: return `${who} made a change`;
   }

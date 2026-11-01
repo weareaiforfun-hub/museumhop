@@ -31,6 +31,6 @@ npm run dev                  # http://localhost:5190
 ## Scripts
 - `npm run check-access`: checks the access rules against the real database with three throwaway users (creates
   nights named "access-check").
-- `npm run seed -- <invite token>`: adds the four fictional planners and their route ideas
-  (`scripts/route-ideas.json`) to a night. Run once per night.
+- Example route ideas: the organiser adds the four fictional planners and their routes (`src/data/route-ideas.json`)
+  from the Ideas tab, through the `na_add_examples` database function.
 - `node scripts/live-friend.mjs <invite token>`: a friend who edits the shared route while you watch.

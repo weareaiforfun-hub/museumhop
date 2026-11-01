@@ -80,5 +80,12 @@ ok("a locked route refuses friends' edits but not the organiser's", !lock.error 
 const activity = (await pat.from("na_activity").select("kind").eq("night_id", night)).data.map((a) => a.kind);
 ok("activity log records changes (and one entry for an adopt)", activity.includes("stop_add") && activity.includes("stop_move") && activity.includes("route_adopt") && activity.includes("member_join"), activity.join(","));
 
+const ideas = JSON.parse(readFileSync(new URL("../src/data/route-ideas.json", import.meta.url), "utf8"));
+const byPat = await pat.rpc("na_add_examples", { p_night: night, p_ideas: ideas });
+const byOrg = await org.rpc("na_add_examples", { p_night: night, p_ideas: ideas });
+const twice = await org.rpc("na_add_examples", { p_night: night, p_ideas: ideas });
+const ideaRoutes = (await pat.from("na_routes").select("title").eq("night_id", night).eq("kind", "personal")).data.map((r) => r.title);
+ok("only the organiser adds the example ideas, once", !!byPat.error && byOrg.data === 4 && !!twice.error && ideaRoutes.length === 5, ideaRoutes.join(" / "));
+
 console.log(failures ? `\n${failures} check(s) failed` : "\nAll checks passed");
 process.exit(failures ? 1 : 0);
