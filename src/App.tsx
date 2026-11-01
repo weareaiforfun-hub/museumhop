@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronRight, Clock, Compass, Map as MapIcon, MapPin, Moon, Plus, Route, Search, Share2, Sparkles, Star, Utensils, Undo2, X } from "lucide-react";
 import { activities, byId, byMuseum, COLORS, FOOD, initials, items, minute, warnings, type Item, type UiStop } from "./lib/catalogue";
-import { addStopOps, derive, personalRouteOps, removeOps, reorderOps, rescheduleOps, timingOps, useSync } from "./lib/night";
+import { addStopOps, derive, personalRouteOps, removeOps, reorderOps, replaceRouteOps, rescheduleOps, timingOps, useSync } from "./lib/night";
 import { newId, sync, type Op } from "./lib/sync";
 import { MapView, type MapLine } from "./components/map-view";
 import { PersonalRoute } from "./components/personal-route";
 import { RouteIdeas, type Proposal } from "./components/route-ideas";
 import { ActivityFeed, describe, SyncPill } from "./components/live";
 import { Timeline } from "./components/timeline";
+import { Decide, REACTIONS, ReactionButtons, type ReactionKey } from "./components/decide";
 
-type Aside = "route" | "personal" | "ideas" | "activity";
+type Aside = "route" | "personal" | "ideas" | "decide" | "activity";
 type Undo = { text: string; ops: Op[] };
 
 /** Invite token -> night id, so a returning browser opens its nights without asking for a name again. */
@@ -40,7 +41,9 @@ export default function App() {
     description: r.description, practical: r.practical, route: night!.stopsOf(r.id), checked_at: r.updated_at,
   })), [night]);
   const people = useMemo(() => (night?.members ?? []).map((m) => ({ id: m.user_id, name: m.display_name, fictional: m.fictional ? 1 : 0, color: m.color })), [night]);
-  const suggestions = useMemo(() => (data?.na_reactions ?? []).filter((r) => r.reaction !== "skip").map((r) => ({ member_id: r.user_id, event_id: r.event_id, note: r.note, id: r.id })), [data]);
+  const suggestions = useMemo(() => (data?.na_reactions ?? []).filter((r) => r.reaction !== "skip").map((r) => ({ member_id: r.user_id, event_id: r.event_id, note: r.note, id: r.id, reaction: r.reaction })), [data]);
+  const myReaction = (eventId: string) => data?.na_reactions.find((r) => r.user_id === userId && r.event_id === eventId)?.reaction;
+  const canEditShared = !!identity && identity.role !== "viewer";
   const proposal = proposals.find((p) => p.id === previewId);
   const mapRoute = previewStops || proposal?.route || (asideMode === "personal" ? myRoute : route);
   const realMembers = night?.members.filter((m) => !m.fictional) ?? [];
@@ -115,12 +118,20 @@ export default function App() {
     run([...clear, ...personalRouteOps(identity.night_id, userId, night.mine, night.mine?.title || identity.display_name + "’s route", stops, []).ops], "Saved as your route idea");
     setToast("Saved as your route idea. Friends can compare it under Route ideas.");
   }
-  function react(eventId: string, active: boolean, withNote = note) {
+  /** Sets, changes or (with null) clears my reaction to a programme item. */
+  function react(eventId: string, reaction: ReactionKey | null, withNote?: string) {
     if (!night || !identity) { setNameDialog(true); return; }
     const mine = data!.na_reactions.find((r) => r.user_id === userId && r.event_id === eventId);
-    if (!active) { if (mine) run([{ t: "delete", table: "na_reactions", id: mine.id }]); return; }
-    run(mine ? [{ t: "update", table: "na_reactions", id: mine.id, patch: { reaction: mine.reaction === "skip" ? "up" : mine.reaction, note: withNote } }]
-      : [{ t: "insert", table: "na_reactions", row: { id: newId(), night_id: identity.night_id, user_id: userId, event_id: eventId, reaction: "up", note: withNote } }]);
+    if (!reaction) { if (mine) run([{ t: "delete", table: "na_reactions", id: mine.id }]); return; }
+    run(mine ? [{ t: "update", table: "na_reactions", id: mine.id, patch: { reaction, note: withNote ?? mine.note, updated_at: new Date().toISOString() } }]
+      : [{ t: "insert", table: "na_reactions", row: { id: newId(), night_id: identity.night_id, user_id: userId, event_id: eventId, reaction, note: withNote ?? "" } }]);
+  }
+  function vote(routeId: string | null) {
+    if (!identity) { setNameDialog(true); return; }
+    const mine = data!.na_idea_votes.find((v) => v.user_id === userId);
+    run(!routeId ? (mine ? [{ t: "delete", table: "na_idea_votes", id: mine.id }] : [])
+      : mine ? [{ t: "update", table: "na_idea_votes", id: mine.id, patch: { route_id: routeId } }]
+      : [{ t: "insert", table: "na_idea_votes", row: { id: newId(), night_id: identity.night_id, user_id: userId, route_id: routeId } }]);
   }
   async function adoptIdea(id: string) {
     if (!identity) { setNameDialog(true); return; }
@@ -167,7 +178,6 @@ export default function App() {
   const types = useMemo(() => Array.from(new Set(activities.flatMap((e) => e.tags))).sort(), []);
   function pick(e: Item) { setSelected(e); setFocus(e.museumId); setNote(suggestions.find((s) => s.event_id === e.id && s.member_id === userId)?.note || ""); }
   const suggesters = (id: string) => suggestions.filter((s) => s.event_id === id);
-  const mySuggestion = (id: string) => suggesters(id).some((s) => s.member_id === userId);
   const uniqueVenues = new Set(route.map((s) => byId.get(s.id)?.museumId)).size;
   const lastSharedChange = data?.na_activity.filter((a) => a.data.route_kind === "shared" || a.kind === "route_adopt").sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
   const lines: MapLine[] = useMemo(() => [{ stops: mapRoute, color: "#de654b", numbered: true }], [mapRoute]);
@@ -209,8 +219,8 @@ export default function App() {
           <div className="section-heading"><h2>Explore the night</h2><span className="count">{activities.length} activities</span></div>
           <div className="category-tabs">{["Activities", "Museums", "Food & drink"].map((c) => <button key={c} className={category === c ? "active" : ""} onClick={() => { setCategory(c); setTag("All types"); }}>{c === "Food & drink" && <Utensils size={13} />} {c}</button>)}</div>
           <label className="search"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search places, activities…" aria-label="Search places and activities" />{query && <button aria-label="Clear search" onClick={() => setQuery("")}><X size={15} /></button>}</label>
-          <div className="filter-row"><select value={tag} onChange={(e) => setTag(e.target.value)} aria-label="Activity type" disabled={category === "Museums"}><option>All types</option>{types.map((t) => <option key={t}>{t}</option>)}</select><button className={"suggested-filter " + (suggestedOnly ? "active" : "")} onClick={() => setSuggestedOnly(!suggestedOnly)}><Star size={14} />Suggestions</button></div>
-          {suggestedOnly && <select className="person-select" aria-label="Filter suggestions by person" value={personFilter} onChange={(e) => setPersonFilter(e.target.value)}><option value="all">Everyone’s suggestions</option>{people.map((m) => <option key={m.id} value={m.id}>{m.name}{m.fictional ? " · fictional" : ""}</option>)}</select>}
+          <div className="filter-row"><select value={tag} onChange={(e) => setTag(e.target.value)} aria-label="Activity type" disabled={category === "Museums"}><option>All types</option>{types.map((t) => <option key={t}>{t}</option>)}</select><button className={"suggested-filter " + (suggestedOnly ? "active" : "")} onClick={() => setSuggestedOnly(!suggestedOnly)}><Star size={14} />Picks</button></div>
+          {suggestedOnly && <select className="person-select" aria-label="Filter suggestions by person" value={personFilter} onChange={(e) => setPersonFilter(e.target.value)}><option value="all">Everyone’s picks</option>{people.map((m) => <option key={m.id} value={m.id}>{m.name}{m.fictional ? " · fictional" : ""}</option>)}</select>}
           <label className="add-target">Add stops to<select aria-label="Add stops to" value={target} onChange={(e) => { const v = e.target.value as "shared" | "personal"; setTarget(v); if (v === "personal") { setAsideMode("personal"); setPreviewId(null); } }}><option value="shared">Our shared route</option><option value="personal">My personal route</option></select></label>
           <div className="results-line"><span>{filtered.length} {category === "Museums" ? "museums" : "options"} to discover</span><span>⌖ Amsterdam</span></div>
         </div>
@@ -219,11 +229,11 @@ export default function App() {
           {filtered.map((e) => {
             const chosen = (target === "personal" ? myRoute : route).some((s) => s.id === e.id), food = e.tags.includes(FOOD);
             return <article key={e.id} className={"event-card " + (chosen ? "on-route" : "")}>
-              <div className="card-topline"><span className={"type-label " + (food ? "food-label" : "")}>{e.id.startsWith("museum:") ? "MUSEUM" : food ? "FOOD & DRINK" : e.tags[0] || "DISCOVER"}</span><button className={"star-button " + (mySuggestion(e.id) ? "active" : "")} aria-label={(mySuggestion(e.id) ? "Remove my suggestion: " : "Suggest: ") + e.title} onClick={() => react(e.id, !mySuggestion(e.id), suggestions.find((s) => s.event_id === e.id && s.member_id === userId)?.note ?? "")}><Star size={17} fill={mySuggestion(e.id) ? "currentColor" : "none"} /></button></div>
+              <div className="card-topline"><span className={"type-label " + (food ? "food-label" : "")}>{e.id.startsWith("museum:") ? "MUSEUM" : food ? "FOOD & DRINK" : e.tags[0] || "DISCOVER"}</span><ReactionButtons value={myReaction(e.id)} onChange={(r) => react(e.id, r)} title={e.title} /></div>
               <button className="card-title" onClick={() => pick(e)}>{e.title}<ArrowUpRight size={16} /></button>
               {!e.id.startsWith("museum:") && <p className="venue"><MapPin size={13} />{e.venue}</p>}
               <div className="card-bottom"><span><Clock size={13} />{e.time.replace(" - ", " – ")}</span><button className={chosen ? "added" : "add-button"} disabled={chosen} onClick={() => (target === "personal" ? addPersonal(e.id) : addShared(e.id))} aria-label={(target === "personal" ? "Add to my route: " : "Add to route: ") + e.title}>{chosen ? <><Check size={14} />Added</> : <><Plus size={14} />{target === "personal" ? "My route" : "Route"}</>}</button></div>
-              {suggesters(e.id).length > 0 && <div className="suggested-by">{suggesters(e.id).map((s) => <span key={s.member_id} title={s.note || undefined}><Star size={10} />{nameOf(s.member_id)}</span>)}</div>}
+              {suggesters(e.id).length > 0 && <div className="suggested-by">{suggesters(e.id).map((s) => { const R = REACTIONS.find((x) => x.key === s.reaction)!; return <span key={s.member_id} title={(s.note || R.label)}><R.Icon size={10} />{nameOf(s.member_id)}</span>; })}</div>}
             </article>;
           })}
         </div>
@@ -232,7 +242,7 @@ export default function App() {
 
       <section className="map-panel" aria-label="Amsterdam map">
         <MapView visible={proposal ? proposal.route.map((s) => byId.get(s.id)!).filter(Boolean) : asideMode === "personal" ? myRoute.map((s) => byId.get(s.id)!).filter(Boolean) : filtered} lines={lines} onSelect={pick} focus={focus} fit={fit} />
-        <div className="map-caption"><span className="live-dot" />{previewStops ? "SUGGESTED ORDER PREVIEW" : proposal ? "ROUTE IDEA PREVIEW" : asideMode === "personal" ? "MY PERSONAL ROUTE" : "AMSTERDAM AT NIGHT"}</div>
+        <div className="map-caption"><span className="live-dot" />{previewStops ? "ROUTE PREVIEW" : proposal ? "ROUTE IDEA PREVIEW" : asideMode === "personal" ? "MY PERSONAL ROUTE" : "AMSTERDAM AT NIGHT"}</div>
         {proposal && <div className="preview-banner"><span>{proposal.title}</span><button onClick={() => setPreviewId(null)} aria-label="Close route preview"><X size={15} /></button></div>}
         <button className="fit-button" onClick={() => setFit(fit + 1)}><Compass size={16} />{proposal ? "Fit preview" : asideMode === "personal" ? "Fit my route" : route.length ? "Fit our route" : "Reset map"}</button>
         <div className="map-legend"><span><i className="legend-museum" />Places & activities</span><span><i className="legend-food" />Food & drink</span><span><i className="legend-route" />{proposal ? "Route idea" : asideMode === "personal" ? "My route" : "Our route"}</span></div>
@@ -244,7 +254,8 @@ export default function App() {
         {identity && <nav className="itinerary-tabs" aria-label="Route choices">
           <button className={asideMode === "route" ? "active" : ""} onClick={() => { setAsideMode("route"); setTarget("shared"); setPreviewId(null); }}>Our route</button>
           <button className={asideMode === "personal" ? "active" : ""} onClick={() => { setAsideMode("personal"); setTarget("personal"); setPreviewId(null); }}>My route</button>
-          <button className={asideMode === "ideas" ? "active" : ""} onClick={() => setAsideMode("ideas")}>Route ideas <span>{proposals.filter((p) => p.route.length).length}</span></button>
+          <button className={asideMode === "ideas" ? "active" : ""} onClick={() => setAsideMode("ideas")}>Ideas <span>{proposals.filter((p) => p.route.length).length}</span></button>
+          <button className={asideMode === "decide" ? "active" : ""} onClick={() => setAsideMode("decide")}>Decide</button>
           <button className={asideMode === "activity" ? "active" : ""} onClick={() => setAsideMode("activity")}>Activity</button>
         </nav>}
         {loading ? <div className="start-plan"><div className="illustration"><Moon size={38} /></div><h3>Loading your night…</h3></div>
@@ -259,7 +270,11 @@ export default function App() {
             onCopyShared={() => run(personalRouteOps(identity.night_id, userId, night!.mine, identity.display_name + "’s route", route, myRoute).ops)}
             onExplore={() => { setTarget("personal"); setView("Explore"); }}
             onPreview={() => { setAsideMode("ideas"); setPreviewId(night!.mine?.id || null); setFit((f) => f + 1); setView("Map"); }} toggle={viewToggle} />
-        : asideMode === "ideas" && night ? <RouteIdeas proposals={proposals} members={people} events={byId} previewId={previewId} onPreview={(id) => { setPreviewId(id); setFit((f) => f + 1); if (id) setView("Map"); }} onAdopt={adoptIdea} onSelect={pick} busy={busy} currentRoute={route} />
+        : asideMode === "ideas" && night ? <RouteIdeas votes={data?.na_idea_votes ?? []} proposals={proposals} members={people} events={byId} previewId={previewId} onPreview={(id) => { setPreviewId(id); setFit((f) => f + 1); if (id) setView("Map"); }} onAdopt={adoptIdea} onSelect={pick} busy={busy} currentRoute={route} />
+        : asideMode === "decide" && data && night ? <Decide data={data} night={night} userId={userId} proposals={proposals} onPick={pick} onReact={(id, r) => react(id, r)}
+            onDeadline={identity?.role === "organiser" ? (iso) => run([{ t: "update", table: "na_nights", id: night.night!.id, patch: { vote_deadline: iso } }]) : null}
+            onVote={vote} onPreview={(p) => { setPreviewStops(p); if (p) setFit((f) => f + 1); }} onPropose={proposeMine}
+            onUseShared={canEditShared && night.shared ? (stops) => { run(replaceRouteOps(night.shared!, route, stops), "Replaced our route with the draft"); setAsideMode("route"); } : null} />
         : asideMode === "activity" && data && night ? <section className="activity-panel"><div className="group-strip"><div><strong>What changed</strong><SyncPill status={status} /></div></div><ActivityFeed data={data} night={night} /></section>
         : !identity ? <div className="start-plan"><div className="illustration"><Moon size={38} /><Sparkles size={20} /></div><h3>{invite ? "Your friends are planning a night." : "Good nights start with good company."}</h3><p>{invite ? "Add your name to join in." : "Create your group, then send the invite link to your friends."}</p>{!nameDialog && joinForm}</div>
         : <>
@@ -269,7 +284,7 @@ export default function App() {
             <button aria-label="Copy invite link" onClick={share}><Plus size={17} /></button>
           </div>
           <div className="route-content">{route.length === 0
-            ? <div className="empty-route"><Route size={30} /><h3>Where will the night take you?</h3><p>Tap <b>+ Route</b> on any place or activity to add your first stop. Star your favourites to suggest them to friends.</p><button className="text-button" onClick={() => setView("Explore")}>Explore the programme<ChevronRight size={15} /></button></div>
+            ? <div className="empty-route"><Route size={30} /><h3>Where will the night take you?</h3><p>Tap <b>+ Route</b> on any place or activity to add your first stop. React to activities so your friends see what you’d like.</p><button className="text-button" onClick={() => setView("Explore")}>Explore the programme<ChevronRight size={15} /></button></div>
             : <>
               <div className="route-summary"><span>{uniqueVenues} {uniqueVenues === 1 ? "venue" : "venues"} · {route.length} stops</span><button onClick={() => { setFit(fit + 1); setView("Map"); }}>Show on map<ArrowUpRight size={13} /></button></div>
               {viewToggle}
@@ -286,7 +301,7 @@ export default function App() {
               const e = byId.get(s.event_id);
               if (!e) return null;
               const who = night?.memberOf.get(s.member_id);
-              return <div className="group-suggestion" key={s.id}><span className="suggestion-person">{who?.display_name}{who?.fictional ? " (fictional)" : ""} suggests</span><button onClick={() => pick(e)}>{e.title}<ArrowUpRight size={13} /></button>{s.note && <p>{s.note}</p>}<button className="suggestion-add" disabled={route.some((r) => r.id === e.id)} onClick={() => addShared(e.id)}>{route.some((r) => r.id === e.id) ? "In our route" : "+ Add to route"}</button></div>;
+              return <div className="group-suggestion" key={s.id}><span className="suggestion-person">{who?.display_name}{who?.fictional ? " (fictional)" : ""} · {s.reaction === "must" ? "must-see" : "up for it"}</span><button onClick={() => pick(e)}>{e.title}<ArrowUpRight size={13} /></button>{s.note && <p>{s.note}</p>}<button className="suggestion-add" disabled={route.some((r) => r.id === e.id)} onClick={() => addShared(e.id)}>{route.some((r) => r.id === e.id) ? "In our route" : "+ Add to route"}</button></div>;
             })}
           </div>
         </>}
@@ -304,11 +319,11 @@ export default function App() {
       <div className="detail-actions">
         <button className="primary" disabled={route.some((s) => s.id === selected.id)} onClick={() => addShared(selected.id)}>{route.some((s) => s.id === selected.id) ? <><Check size={16} />In our route</> : <><Plus size={16} />Add to our route</>}</button>
         <button className="secondary" disabled={myRoute.some((s) => s.id === selected.id)} onClick={() => addPersonal(selected.id)}><Plus size={16} />My route</button>
-        <button className="secondary" onClick={() => react(selected.id, !mySuggestion(selected.id))}><Star size={16} />{mySuggestion(selected.id) ? "Unstar" : "Suggest"}</button>
       </div>
+      <ReactionButtons big value={myReaction(selected.id)} onChange={(r) => react(selected.id, r, note)} title={selected.title} />
       <label className="note-label">Why you’d like to go <span>(optional)</span><textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={240} placeholder="This looks like our kind of thing…" /></label>
-      <button className="text-button" onClick={() => react(selected.id, true)}>Save my suggestion & note<ArrowUpRight size={14} /></button>
-      {suggesters(selected.id).length > 0 && <div className="detail-suggestions">{suggesters(selected.id).map((s) => <p key={s.member_id}><b>{nameOf(s.member_id)}</b>{s.note ? ": " + s.note : " suggested this."}</p>)}</div>}
+      <button className="text-button" onClick={() => react(selected.id, myReaction(selected.id) ?? "up", note)}>Save my note{myReaction(selected.id) ? "" : " (as Up for it)"}<ArrowUpRight size={14} /></button>
+      {suggesters(selected.id).length > 0 && <div className="detail-suggestions">{suggesters(selected.id).map((s) => <p key={s.member_id}><b>{nameOf(s.member_id)}</b> · {REACTIONS.find((x) => x.key === s.reaction)!.label}{s.note ? ": " + s.note : ""}</p>)}</div>}
       {selected.id.startsWith("museum:") && <div className="museum-activities"><h3>What’s on here</h3>{activities.filter((e) => e.museumId === selected.museumId).map((e) => <button key={e.id} onClick={() => pick(e)}><span>{e.title}<small>{e.time} · {e.tags.join(" · ")}</small></span><ChevronRight size={16} /></button>)}</div>}
     </section></div>}
     {nameDialog && <div className="modal-backdrop" onClick={() => setNameDialog(false)}><section className="name-modal" role="dialog" aria-modal="true" aria-label={identity ? "Your name" : "Join the night"} onClick={(e) => e.stopPropagation()}>

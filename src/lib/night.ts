@@ -73,3 +73,11 @@ export function personalRouteOps(nightId: string, userId: string, existing: Rout
   }
   return { routeId, ops };
 }
+
+/** Replaces all stops of a route with new ones (e.g. a draft from the votes). One undo restores the old route. */
+export function replaceRouteOps(route: Route, current: UiStop[], next: UiStop[]): Op[] {
+  return [
+    ...current.filter((s) => s.rowId).map((s): Op => ({ t: "delete", table: "na_stops", id: s.rowId! })),
+    ...next.map((s, i): Op => ({ t: "insert", table: "na_stops", row: { id: newId(), night_id: route.night_id, route_id: route.id, pos: i + 1, event_id: s.id, arrival: s.arrival, duration: s.duration, reason: s.reason ?? "", practical: s.practical ?? "", transfer: s.transfer ?? "", fixed: !!s.fixed } })),
+  ];
+}
