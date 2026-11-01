@@ -1,0 +1,4 @@
+import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+export const plans = sqliteTable('plans', { id:text('id').primaryKey(), route:text('route').notNull().default('[]'), version:integer('version').notNull().default(0), updatedBy:text('updated_by').notNull().default(''), updatedAt:text('updated_at').notNull() });
+export const members = sqliteTable('members', { id:text('id').primaryKey(), planId:text('plan_id').notNull().references(()=>plans.id), tokenHash:text('token_hash').notNull(), name:text('name').notNull() });
+export const suggestions = sqliteTable('suggestions', { id:text('id').primaryKey(), planId:text('plan_id').notNull().references(()=>plans.id), memberId:text('member_id').notNull().references(()=>members.id), eventId:text('event_id').notNull(), note:text('note').notNull().default('') }, t=>[uniqueIndex('suggestion_unique').on(t.planId,t.memberId,t.eventId)]);
