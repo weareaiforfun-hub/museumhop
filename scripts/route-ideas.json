@@ -1,0 +1,232 @@
+[
+  {
+    "name": "Arien Suggestion 1",
+    "title": "Free spirits & handmade things",
+    "description": "My strongest match for you: old traditions, personal stories, playful making, and Caribbean food. A reflective evening with things to take home, rather than a drinking-focused night.",
+    "practical": "Central Amsterdam on foot. Five venues, 19:00–23:20. The 21:00 smudgestick session is the anchor. Have a snack before starting; the main food stop is at 21:45. Tarot is an optional €15 extra; food and other unpublished prices are separate. Arrival targets are flexible except the marked session.",
+    "route": [
+      {
+        "id": "tarot-lezingen",
+        "arrival": "19:00",
+        "duration": 35,
+        "reason": "Explore an unusual historic collection and approach a tarot reading as a cultural experiment.",
+        "practical": "Optional 10-minute flash reading: €15. If you would rather skip it, explore the collection or Cymatics lab instead.",
+        "transfer": "",
+        "fixed": false
+      },
+      {
+        "id": "leer-marmeren-op-papier",
+        "arrival": "19:55",
+        "duration": 30,
+        "reason": "Try Ebru paper marbling: traditional craft, unpredictable patterns, and a piece you make yourself.",
+        "practical": "The venue is explicitly alcohol-free. Workshop duration and capacity are not specified; adjust locally.",
+        "transfer": "20 minutes to walk plus 0–15 minutes of spare time from the previous stop.",
+        "fixed": false
+      },
+      {
+        "id": "maak-je-eigen-smudgestick",
+        "arrival": "21:00",
+        "duration": 30,
+        "reason": "Learn about Moluccan heritage through herbs, family history, and making your own botanical bundle.",
+        "practical": "Official sessions: 21:00–21:30 and 22:00–22:30. Aim to arrive by 20:45 for the first; if full, the second requires rearranging the next stops.",
+        "transfer": "Allow about 25 minutes walking from Fatih, with an additional 10-minute margin before the target arrival.",
+        "fixed": true
+      },
+      {
+        "id": "queen-of-johnnycakes",
+        "arrival": "21:45",
+        "duration": 40,
+        "reason": "A proper food break with Yvette’s Curaçao-rooted Caribbean cooking, inside a canal-house museum.",
+        "practical": "Food prices, availability, and dietary options are not listed. Buy food separately; leave a little time to look around the house.",
+        "transfer": "About 5–10 minutes walking, with spare time for entry.",
+        "fixed": false
+      },
+      {
+        "id": "maak-een-zine",
+        "arrival": "22:40",
+        "duration": 40,
+        "reason": "Turn photographs into an eight-page story using writing, drawing, and collage. A personal creative finish.",
+        "practical": "The activity ends at 23:30. Confirm you can start a workshop at this time; if full, look around Foam’s photography exhibitions.",
+        "transfer": "A short walk along the canal; the plan leaves 15 minutes between stops.",
+        "fixed": false
+      }
+    ],
+    "alternatives": []
+  },
+  {
+    "name": "Arien Suggestion 2",
+    "title": "Weird science & living systems",
+    "description": "For your curious, outside-the-box side: an experimental meal, making something real, urban biodiversity, coded movement, and a cosmic ending.",
+    "practical": "An east-centre walking route: Mediamatic → NEMO → Arcam → Waag → ARTIS. Five venues, 19:00–00:00. Spoon-making costs €15 extra. Meal price and projection start times are not published in the checked listings; ask on arrival. Bring a bag for anything you make.",
+    "route": [
+      {
+        "id": "genetisch-gemodificeerd-eten-bij-testtafel",
+        "arrival": "19:00",
+        "duration": 50,
+        "reason": "Start by tasting the experimental menu at TestTafel and discussing biotechnology over dinner.",
+        "practical": "The official listing describes genetically modified food and drink. Check the actual menu, dietary suitability, price, and service pace before ordering.",
+        "transfer": "",
+        "fixed": false
+      },
+      {
+        "id": "the-spoon-press",
+        "arrival": "20:10",
+        "duration": 40,
+        "reason": "Press a useful steel spoon yourself, then try it with ice cream. A satisfying antidote to passive looking.",
+        "practical": "€15 extra for the spoon, which you keep. If the queue is long, DIY Kettingreactie at NEMO is an alternative.",
+        "transfer": "Leave 20 minutes for the walk and museum entry.",
+        "fixed": false
+      },
+      {
+        "id": "maak-je-eigen-insectenhotel-met-annas-tuin-en-ruigte",
+        "arrival": "21:05",
+        "duration": 40,
+        "reason": "Build an insect shelter with a permaculture initiative, bringing ecology and hands-on creativity together.",
+        "practical": "Materials, capacity, and workshop length are not specified. Ask whether the work can be finished within this visit.",
+        "transfer": "About 10 minutes walking, with a small entry margin.",
+        "fixed": false
+      },
+      {
+        "id": "algodance",
+        "arrival": "22:10",
+        "duration": 35,
+        "reason": "Use movement to encode a message and explore how communities communicate around platform restrictions.",
+        "practical": "A playful activity about digital culture and expression. No published fixed session or extra fee in the checked listing.",
+        "transfer": "Allow about 20 minutes walking and a short queue buffer.",
+        "fixed": false
+      },
+      {
+        "id": "the-universe-has-time-you-dont",
+        "arrival": "23:15",
+        "duration": 45,
+        "reason": "Finish under the planetarium dome, considering strange future scenarios for Earth and space.",
+        "practical": "23:15 is a target arrival, not a confirmed screening start. Join the next available projection; the listed activity window lasts until 01:45.",
+        "transfer": "Leave 30 minutes for the walk across the eastern centre and entry.",
+        "fixed": false
+      }
+    ],
+    "alternatives": []
+  },
+  {
+    "name": "Arien Suggestion 3",
+    "title": "Art with a rebellious streak",
+    "description": "Big museums through a less conventional lens: a community meal, reused clothing, feminist shadow puppets, Kusama, clay, and a surreal live atelier.",
+    "practical": "Mostly Museumplein, finishing near Vondelpark. Five venues and six stops, 19:00–00:45. Bring a cotton T-shirt or tote. Expect museum queues: if running late, skip one workshop rather than rush all six stops. De Sering is vegan; meal prices are not published in the checked listing.",
+    "route": [
+      {
+        "id": "de-sering",
+        "arrival": "19:00",
+        "duration": 40,
+        "reason": "Eat with a vegan community kitchen where meeting people is part of the point. A welcoming, social start.",
+        "practical": "This is De Sering’s Museumnacht kitchen at the Van Gogh Museum, not its regular location. Check food prices and the menu.",
+        "transfer": "",
+        "fixed": false
+      },
+      {
+        "id": "geef-je-oude-t-shirt-een-tweede-leven",
+        "arrival": "19:50",
+        "duration": 35,
+        "reason": "Give an old garment a new design through textile printing, with reuse at the centre of the work.",
+        "practical": "Bring your own cotton T-shirt or bag. The listing says only a limited number of spare shirts are available.",
+        "transfer": "Same museum; keep 10 minutes to find the workshop and join any queue.",
+        "fixed": false
+      },
+      {
+        "id": "schaduwtheater-met-een-feministisch-randje-van-wayang-women-en-dj-rani-jambak",
+        "arrival": "20:45",
+        "duration": 45,
+        "reason": "Make a shadow puppet with an all-women wayang collective, mixing traditional craft with feminist reinterpretation.",
+        "practical": "The programme is explicitly labelled alcohol-free and runs until 22:00. Check how workshop and performance participation work.",
+        "transfer": "Walk across Museumplein and allow for a separate venue entry queue.",
+        "fixed": false
+      },
+      {
+        "id": "blikopener-speedtours",
+        "arrival": "21:50",
+        "duration": 35,
+        "reason": "Look beyond Kusama’s famous patterns into questions of self-image, repetition, and infinity.",
+        "practical": "Find the next available Blikopener tour; 21:50 is not an advertised departure. Listed tours finish at 23:00.",
+        "transfer": "Same building address as Buro Stedelijk, but allow 20 minutes to move between entrances or queues.",
+        "fixed": false
+      },
+      {
+        "id": "boetseren-zoals-willem-de-kooning",
+        "arrival": "22:50",
+        "duration": 40,
+        "reason": "Make an expressive clay sculpture rather than only looking at art. The activity is labelled low-stimulation.",
+        "practical": "The activity ends at midnight. Ask about places and duration before starting; any extra price is not specified.",
+        "transfer": "Leave 25 minutes for the walk to the Rijksmuseum and entry.",
+        "fixed": false
+      },
+      {
+        "id": "twee-manieren-om-waarheid-te-vertellen",
+        "arrival": "00:00",
+        "duration": 45,
+        "reason": "End in a historic riding hall with artists working live between observation, imagination, and surreal performance.",
+        "practical": "The listed live-atelier window continues until 02:00, giving this final stop some flexibility.",
+        "transfer": "Allow 30 minutes for the walk toward Vondelpark and the museum entrance.",
+        "fixed": false
+      }
+    ],
+    "alternatives": []
+  },
+  {
+    "name": "Arien Suggestion 4",
+    "title": "Go wonderfully weird",
+    "description": "A lively night of local Amsterdam colour, collective art, graffiti, camp self-expression, and warehouse theatre. Plenty of energy without making alcohol the activity.",
+    "practical": "West → NDSM. Four venues and five stops, 19:00–01:00. A 70-minute transfer block is reserved for walking, ferry waiting, crossing, and entry; check live GVB routes and the return ferry. The 23:30 theatre performance is fixed. For a calmer Noord-only start, skip Amsterdam in Motion, eat beforehand, and attend Breath of Freedom at Treehouse, 19:30–20:30.",
+    "route": [
+      {
+        "id": "de-amsterdamse-voetbalkantine",
+        "arrival": "19:00",
+        "duration": 45,
+        "reason": "Start with a tosti and a dose of local Amsterdam culture in a museum about the city.",
+        "practical": "This is simple canteen food, not a guaranteed full dinner menu. Prices are not published; eat more beforehand if needed. Optional: add your design to the CD-Remix artwork while here.",
+        "transfer": "",
+        "fixed": false
+      },
+      {
+        "id": "free-painten",
+        "arrival": "21:30",
+        "duration": 45,
+        "reason": "Try your own lines, doodles, or first tag with guidance from STRAAT’s museum educators.",
+        "practical": "Allow time to explore the street-art collection around the workshop. It runs until midnight, so this stop can slide later.",
+        "transfer": "Use the gap from 19:45 to 21:30 for the optional CD artwork and a 70-minute walking/ferry/entry allowance. Check GVB; this is not a live travel estimate.",
+        "fixed": false
+      },
+      {
+        "id": "interactieve-catwalkinstallatie-why-are-you-so-obsessed-joris-janssen",
+        "arrival": "22:30",
+        "duration": 35,
+        "reason": "Play with camp, fashion, identity, and a photobooth-catwalk installation; participate as much or as little as you like.",
+        "practical": "The installation runs until 02:00. This stop concerns self-expression rather than a specific live performance.",
+        "transfer": "Allow 15 minutes to walk within NDSM and enter.",
+        "fixed": false
+      },
+      {
+        "id": "siii-metamorphose-van-guido-hoek",
+        "arrival": "23:30",
+        "duration": 45,
+        "reason": "Watch a performance about masculinity, imitation, empathy, and connection in an artists’ community.",
+        "practical": "The live official listing gives 23:30–00:15. Reach Treehouse by about 23:15 and check seating or admission locally.",
+        "transfer": "A short NDSM walk, with 25 minutes reserved for finding the room and a seat.",
+        "fixed": true
+      },
+      {
+        "id": "collaborative-drawing",
+        "arrival": "00:30",
+        "duration": 30,
+        "reason": "Finish by drawing with other people: a playful, collaborative decompression after the theatre.",
+        "practical": "A flexible late-night option at Treehouse, listed until 02:00. Skip it if you need an earlier ferry.",
+        "transfer": "Same venue; leave 15 minutes between activities.",
+        "fixed": false
+      }
+    ],
+    "alternatives": [
+      {
+        "id": "breath-of-freedom-high-on-your-own-supply",
+        "note": "Alternative Noord-only start: 19:30–20:30 breathwork with improvised electronic music. Eat before starting; skip Amsterdam in Motion and meet the main route at STRAAT."
+      }
+    ]
+  }
+]
