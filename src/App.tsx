@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronRight, Clock, Compass, Map as MapIcon, MapPin, Moon, Plus, Route, Search, Share2, Sparkles, Star, Utensils, Undo2, X } from "lucide-react";
 import { activities, byId, byMuseum, COLORS, FOOD, initials, items, minute, warnings, type Item, type UiStop } from "./lib/catalogue";
-import { addStopOps, derive, personalRouteOps, removeOps, reorderOps, timingOps, useSync } from "./lib/night";
+import { addStopOps, derive, personalRouteOps, removeOps, reorderOps, rescheduleOps, timingOps, useSync } from "./lib/night";
 import { newId, sync, type Op } from "./lib/sync";
 import { MapView, type MapLine } from "./components/map-view";
 import { PersonalRoute } from "./components/personal-route";
 import { RouteIdeas, type Proposal } from "./components/route-ideas";
 import { ActivityFeed, describe, SyncPill } from "./components/live";
+import { Timeline } from "./components/timeline";
 
 type Aside = "route" | "personal" | "ideas" | "activity";
 type Undo = { text: string; ops: Op[] };
@@ -27,6 +28,7 @@ export default function App() {
   const [name, setName] = useState(pref("na:name")), [color, setColor] = useState(pref("na:color") || COLORS[Math.floor(Math.random() * COLORS.length)]);
   const [note, setNote] = useState(""), [selected, setSelected] = useState<Item | null>(null), [focus, setFocus] = useState<string | null>(null), [fit, setFit] = useState(0);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [toast, setToast] = useState(""), [undo, setUndo] = useState<Undo | null>(null), [nameDialog, setNameDialog] = useState(false);
+  const [routeView, setRouteView] = useState<"list" | "timeline">("list"), [previewStops, setPreviewStops] = useState<UiStop[] | null>(null);
   const openedIdeas = useRef(false);
 
   const night = useMemo(() => (data ? derive(data, userId) : null), [data, userId]);
@@ -40,7 +42,7 @@ export default function App() {
   const people = useMemo(() => (night?.members ?? []).map((m) => ({ id: m.user_id, name: m.display_name, fictional: m.fictional ? 1 : 0, color: m.color })), [night]);
   const suggestions = useMemo(() => (data?.na_reactions ?? []).filter((r) => r.reaction !== "skip").map((r) => ({ member_id: r.user_id, event_id: r.event_id, note: r.note, id: r.id })), [data]);
   const proposal = proposals.find((p) => p.id === previewId);
-  const mapRoute = proposal?.route || (asideMode === "personal" ? myRoute : route);
+  const mapRoute = previewStops || proposal?.route || (asideMode === "personal" ? myRoute : route);
   const realMembers = night?.members.filter((m) => !m.fictional) ?? [];
   const nameOf = (uid: string) => night?.memberOf.get(uid)?.display_name;
 
@@ -88,7 +90,7 @@ export default function App() {
     const requested = new URLSearchParams(location.hash.slice(1)).get("idea");
     if (requested && proposals.some((p) => p.id === requested)) { setAsideMode("ideas"); setPreviewId(requested); setFit((f) => f + 1); }
   }, [proposals.length]);
-  useEffect(() => { document.querySelector(".itinerary")?.scrollTo({ top: 0 }); }, [previewId, asideMode]);
+  useEffect(() => { document.querySelector(".itinerary")?.scrollTo({ top: 0 }); setPreviewStops(null); }, [previewId, asideMode]);
 
   /* ---------- changes ---------- */
   /** Shows ops at once and saves them; with a label, offers to undo. */
@@ -105,6 +107,13 @@ export default function App() {
     if (!night || !identity) { setNameDialog(true); return; }
     if (night.mine) run(addStopOps(night.mine, myRoute, id), `Added ${title(id)} to your route`);
     else run(personalRouteOps(identity.night_id, userId, undefined, identity.display_name + "’s route", [{ id, arrival: "", duration: 45 }]).ops, `Added ${title(id)} to your route`);
+  }
+  /** Replaces my personal route (a route idea) with these stops, e.g. a suggested order. */
+  function proposeMine(stops: UiStop[]) {
+    if (!night || !identity) { setNameDialog(true); return; }
+    const clear: Op[] = myRoute.map((s) => ({ t: "delete", table: "na_stops", id: s.rowId! }));
+    run([...clear, ...personalRouteOps(identity.night_id, userId, night.mine, night.mine?.title || identity.display_name + "’s route", stops, []).ops], "Saved as your route idea");
+    setToast("Saved as your route idea. Friends can compare it under Route ideas.");
   }
   function react(eventId: string, active: boolean, withNote = note) {
     if (!night || !identity) { setNameDialog(true); return; }
@@ -162,6 +171,9 @@ export default function App() {
   const uniqueVenues = new Set(route.map((s) => byId.get(s.id)?.museumId)).size;
   const lastSharedChange = data?.na_activity.filter((a) => a.data.route_kind === "shared" || a.kind === "route_adopt").sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
   const lines: MapLine[] = useMemo(() => [{ stops: mapRoute, color: "#de654b", numbered: true }], [mapRoute]);
+  const viewToggle = <div className="view-toggle" role="group" aria-label="Route view">
+    {(["list", "timeline"] as const).map((v) => <button key={v} aria-pressed={routeView === v} className={routeView === v ? "on" : ""} onClick={() => { setRouteView(v); setPreviewStops(null); }}>{v === "list" ? "List" : "Timeline"}</button>)}
+  </div>;
   const loading = !!nightId && !night?.members.length && status?.conn !== "offline";
 
   const joinForm = (
@@ -220,7 +232,7 @@ export default function App() {
 
       <section className="map-panel" aria-label="Amsterdam map">
         <MapView visible={proposal ? proposal.route.map((s) => byId.get(s.id)!).filter(Boolean) : asideMode === "personal" ? myRoute.map((s) => byId.get(s.id)!).filter(Boolean) : filtered} lines={lines} onSelect={pick} focus={focus} fit={fit} />
-        <div className="map-caption"><span className="live-dot" />{proposal ? "ROUTE IDEA PREVIEW" : asideMode === "personal" ? "MY PERSONAL ROUTE" : "AMSTERDAM AT NIGHT"}</div>
+        <div className="map-caption"><span className="live-dot" />{previewStops ? "SUGGESTED ORDER PREVIEW" : proposal ? "ROUTE IDEA PREVIEW" : asideMode === "personal" ? "MY PERSONAL ROUTE" : "AMSTERDAM AT NIGHT"}</div>
         {proposal && <div className="preview-banner"><span>{proposal.title}</span><button onClick={() => setPreviewId(null)} aria-label="Close route preview"><X size={15} /></button></div>}
         <button className="fit-button" onClick={() => setFit(fit + 1)}><Compass size={16} />{proposal ? "Fit preview" : asideMode === "personal" ? "Fit my route" : route.length ? "Fit our route" : "Reset map"}</button>
         <div className="map-legend"><span><i className="legend-museum" />Places & activities</span><span><i className="legend-food" />Food & drink</span><span><i className="legend-route" />{proposal ? "Route idea" : asideMode === "personal" ? "My route" : "Our route"}</span></div>
@@ -236,6 +248,9 @@ export default function App() {
           <button className={asideMode === "activity" ? "active" : ""} onClick={() => setAsideMode("activity")}>Activity</button>
         </nav>}
         {loading ? <div className="start-plan"><div className="illustration"><Moon size={38} /></div><h3>Loading your night…</h3></div>
+        : asideMode === "personal" && identity && routeView === "timeline" && myRoute.length ? <section className="personal-route"><h3>My route</h3>{viewToggle}
+            <Timeline stops={myRoute} title={night?.mine?.title || "My route"} onPick={pick} onPropose={proposeMine} onPreview={(p) => { setPreviewStops(p); if (p) setFit((f) => f + 1); }}
+              onReschedule={(next, label) => run(rescheduleOps(myRoute, next), label)} /></section>
         : asideMode === "personal" && identity ? <PersonalRoute title={night?.mine?.title} name={identity.display_name} route={myRoute} events={byId} shared={route}
             onRename={(t) => run(night!.mine ? [{ t: "update", table: "na_routes", id: night!.mine.id, patch: { title: t } }] : personalRouteOps(identity.night_id, userId, undefined, t, []).ops)}
             onMove={(i, to) => run(reorderOps(myRoute, i, to))}
@@ -243,7 +258,7 @@ export default function App() {
             onTiming={(s, a, d) => run(timingOps(s, a, d))}
             onCopyShared={() => run(personalRouteOps(identity.night_id, userId, night!.mine, identity.display_name + "’s route", route, myRoute).ops)}
             onExplore={() => { setTarget("personal"); setView("Explore"); }}
-            onPreview={() => { setAsideMode("ideas"); setPreviewId(night!.mine?.id || null); setFit((f) => f + 1); setView("Map"); }} />
+            onPreview={() => { setAsideMode("ideas"); setPreviewId(night!.mine?.id || null); setFit((f) => f + 1); setView("Map"); }} toggle={viewToggle} />
         : asideMode === "ideas" && night ? <RouteIdeas proposals={proposals} members={people} events={byId} previewId={previewId} onPreview={(id) => { setPreviewId(id); setFit((f) => f + 1); if (id) setView("Map"); }} onAdopt={adoptIdea} onSelect={pick} busy={busy} currentRoute={route} />
         : asideMode === "activity" && data && night ? <section className="activity-panel"><div className="group-strip"><div><strong>What changed</strong><SyncPill status={status} /></div></div><ActivityFeed data={data} night={night} /></section>
         : !identity ? <div className="start-plan"><div className="illustration"><Moon size={38} /><Sparkles size={20} /></div><h3>{invite ? "Your friends are planning a night." : "Good nights start with good company."}</h3><p>{invite ? "Add your name to join in." : "Create your group, then send the invite link to your friends."}</p>{!nameDialog && joinForm}</div>
@@ -257,7 +272,11 @@ export default function App() {
             ? <div className="empty-route"><Route size={30} /><h3>Where will the night take you?</h3><p>Tap <b>+ Route</b> on any place or activity to add your first stop. Star your favourites to suggest them to friends.</p><button className="text-button" onClick={() => setView("Explore")}>Explore the programme<ChevronRight size={15} /></button></div>
             : <>
               <div className="route-summary"><span>{uniqueVenues} {uniqueVenues === 1 ? "venue" : "venues"} · {route.length} stops</span><button onClick={() => { setFit(fit + 1); setView("Map"); }}>Show on map<ArrowUpRight size={13} /></button></div>
-              {route.map((s, index) => <SharedStop key={s.rowId} s={s} index={index} route={route} onPick={pick} run={run} />)}
+              {viewToggle}
+              {routeView === "timeline"
+                ? <Timeline stops={route} title="Our route" onPick={pick} onPropose={proposeMine} onPreview={(p) => { setPreviewStops(p); if (p) setFit((f) => f + 1); }}
+                    onReschedule={(next, label) => run(rescheduleOps(route, next), label)} />
+                : route.map((s, index) => <SharedStop key={s.rowId} s={s} index={index} route={route} onPick={pick} run={run} />)}
               <div className="route-disclaimer">The dashed line connects stops in order. Use directions for streets, crossings, and ferries. Travel and queue time are not included.</div>
               {lastSharedChange && data && night && <p className="last-editor">Last change: {describe(lastSharedChange, data, night)}</p>}
             </>}

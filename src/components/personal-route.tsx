@@ -14,9 +14,10 @@ type Props = {
   onCopyShared: () => void;
   onExplore: () => void;
   onPreview: () => void;
+  toggle?: React.ReactNode;
 };
 
-export function PersonalRoute({ title, name, route, events, shared, onRename, onMove, onRemove, onTiming, onCopyShared, onExplore, onPreview }: Props) {
+export function PersonalRoute({ title, name, route, events, shared, onRename, onMove, onRemove, onTiming, onCopyShared, onExplore, onPreview, toggle }: Props) {
   return (
     <section className="personal-route">
       <h3>My route</h3>
@@ -29,6 +30,7 @@ export function PersonalRoute({ title, name, route, events, shared, onRename, on
         <button className="text-button" onClick={onExplore}><Plus size={14} />Choose activities</button>
         {route.length > 0 && <button className="text-button" onClick={onPreview}><Compass size={14} />Preview</button>}
       </div>
+      {route.length > 0 && toggle}
       {!route.length && (
         <div className="empty-route">
           <Route size={28} />

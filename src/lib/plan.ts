@@ -1,0 +1,147 @@
+import walk from "../data/walk.json";
+import { byId, byMuseum, clock, minute, windowOf, type UiStop } from "./catalogue";
+
+const index = new Map(walk.ids.map((id, i) => [id, i]));
+const START = minute("19:00"), END = minute("02:00");
+
+/** Walking time and distance between two programme items, from the routing matrix (or straight line × 1.3 at 4.8 km/h). */
+export function leg(fromEvent: string, toEvent: string): { minutes: number; metres: number } {
+  const a = byId.get(fromEvent)?.museumId, b = byId.get(toEvent)?.museumId;
+  if (!a || !b || a === b) return { minutes: 0, metres: 0 };
+  const i = index.get(a), j = index.get(b);
+  const m = i != null && j != null ? walk.minutes[i][j] : null;
+  if (m != null) return { minutes: m, metres: walk.metres[i!][j!] ?? 0 };
+  const p = byMuseum.get(a)!, q = byMuseum.get(b)!;
+  const rad = Math.PI / 180, dLat = (q.lat - p.lat) * rad, dLng = (q.lng - p.lng) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(p.lat * rad) * Math.cos(q.lat * rad) * Math.sin(dLng / 2) ** 2;
+  const metres = 2 * 6371000 * Math.asin(Math.sqrt(h)) * 1.3;
+  return { minutes: Math.round(metres / 80), metres: Math.round(metres) };
+}
+
+export type Slot = UiStop & { start: number; end: number; estimated: boolean; window: [number, number] | null; outside: boolean;
+  walk: { minutes: number; metres: number }; gap: number | null; tight: boolean };
+export type Analysis = { slots: Slot[]; walkMinutes: number; metres: number; ends: number | null; tight: number; outside: number };
+
+/** Works out when each stop happens. Stops without an arrival time follow straight on from the previous one. */
+export function analyse(stops: UiStop[]): Analysis {
+  const slots: Slot[] = [];
+  for (const [i, s] of stops.entries()) {
+    const prev = slots[i - 1];
+    const w = prev ? leg(prev.id, s.id) : { minutes: 0, metres: 0 };
+    const window = windowOf(byId.get(s.id));
+    const earliest = prev ? prev.end + w.minutes : Math.max(START, window?.[0] ?? START);
+    const start = s.arrival ? minute(s.arrival) : Math.max(earliest, window?.[0] ?? 0);
+    const end = start + s.duration;
+    const gap = prev ? start - prev.end : null;
+    slots.push({ ...s, start, end, estimated: !s.arrival, window, walk: w, gap,
+      tight: gap != null && gap < w.minutes, outside: !!window && (start < window[0] || end > window[1]) });
+  }
+  return {
+    slots,
+    walkMinutes: slots.reduce((n, s) => n + s.walk.minutes, 0),
+    metres: slots.reduce((n, s) => n + s.walk.metres, 0),
+    ends: slots.length ? Math.max(...slots.map((s) => s.end)) : null,
+    tight: slots.filter((s) => s.tight).length,
+    outside: slots.filter((s) => s.outside).length,
+  };
+}
+
+const roundUp5 = (n: number) => Math.ceil(n / 5) * 5;
+
+/** Moves later arrivals forward just enough to walk there; earlier stops and fixed sessions stay put. */
+export function pushToFit(stops: UiStop[]): UiStop[] {
+  const out: UiStop[] = [];
+  let prevEnd: number | null = null, prevId = "";
+  for (const s of stops) {
+    let start = s.arrival ? minute(s.arrival) : null;
+    if (prevEnd != null && start != null && !s.fixed) {
+      const need = prevEnd + leg(prevId, s.id).minutes;
+      if (start < need) start = roundUp5(need);
+    }
+    out.push(start != null && clock(start) !== s.arrival ? { ...s, arrival: clock(start) } : s);
+    prevEnd = start != null ? start + s.duration : prevEnd != null ? prevEnd + leg(prevId, s.id).minutes + s.duration : null;
+    prevId = s.id;
+  }
+  return out;
+}
+
+/** Schedules stops in this order as early as possible. Returns null if a fixed session or a closing time is missed. */
+function schedule(order: UiStop[], firstStart: number): { stops: UiStop[]; walk: number; ends: number } | null {
+  const out: UiStop[] = [];
+  let t = firstStart, walked = 0;
+  for (const [i, s] of order.entries()) {
+    const w = i ? leg(order[i - 1].id, s.id).minutes : 0;
+    walked += w;
+    const window = windowOf(byId.get(s.id));
+    let start = Math.max(roundUp5(t + w), window?.[0] ?? 0);
+    if (s.fixed && s.arrival) {
+      const fixedAt = minute(s.arrival);
+      if (start > fixedAt) return null;
+      start = fixedAt;
+    }
+    if (window && start + s.duration > window[1]) return null;
+    if (start + s.duration > END + 30) return null;
+    out.push({ ...s, arrival: clock(start) });
+    t = start + s.duration;
+  }
+  return { stops: out, walk: walked, ends: t };
+}
+
+function permutations<T>(xs: T[]): T[][] {
+  if (xs.length <= 1) return [xs];
+  return xs.flatMap((x, i) => permutations([...xs.slice(0, i), ...xs.slice(i + 1)]).map((p) => [x, ...p]));
+}
+
+export type Suggestion = { stops: UiStop[]; walk: number; saved: number; ends: number; changedOrder: boolean };
+
+/** Finds the order with the least walking where every stop fits its opening hours and fixed sessions are kept. */
+export function suggestOrder(stops: UiStop[]): Suggestion | null {
+  if (stops.length < 2) return null;
+  const first = stops[0].arrival ? minute(stops[0].arrival) : START;
+  const current = analyse(stops);
+  let best: { stops: UiStop[]; walk: number; ends: number } | null = null;
+  const better = (c: NonNullable<typeof best>) => !best || c.walk < best.walk || (c.walk === best.walk && c.ends < best.ends);
+  if (stops.length <= 8) {
+    for (const order of permutations(stops)) { const c = schedule(order, first); if (c && better(c)) best = c; }
+  } else {
+    // Greedy nearest next stop, then 2-opt swaps while they shorten the walk.
+    let order = [stops[0]];
+    const left = stops.slice(1);
+    while (left.length) {
+      left.sort((a, b) => leg(order.at(-1)!.id, a.id).minutes - leg(order.at(-1)!.id, b.id).minutes);
+      order.push(left.shift()!);
+    }
+    best = schedule(order, first);
+    for (let improved = true; improved;) {
+      improved = false;
+      for (let i = 1; i < order.length - 1; i++) for (let j = i + 1; j < order.length; j++) {
+        const next = [...order.slice(0, i), ...order.slice(i, j + 1).reverse(), ...order.slice(j + 1)];
+        const c = schedule(next, first);
+        if (c && better(c)) { best = c; order = next; improved = true; }
+      }
+    }
+  }
+  if (!best) return null;
+  const changedOrder = best.stops.some((s, i) => s.id !== stops[i].id);
+  const saved = current.walkMinutes - best.walk;
+  // Only worth offering if it walks less, or fixes clashes the current plan has.
+  if (saved < 3 && !(current.tight || current.outside)) return null;
+  return { stops: best.stops, walk: best.walk, saved, ends: best.ends, changedOrder };
+}
+
+/** A calendar file with one event per stop (Europe/Amsterdam local times on 7–8 Nov 2026). */
+export function toIcs(stops: UiStop[], title: string) {
+  const { slots } = analyse(stops);
+  const stamp = (n: number) => `2026110${n >= 24 * 60 ? 8 : 7}T${clock(n).replace(":", "")}00`;
+  const esc = (s: string) => s.replace(/[\\;,]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Night Atlas//EN", "CALSCALE:GREGORIAN", `X-WR-CALNAME:${esc(title)}`];
+  for (const s of slots) {
+    const e = byId.get(s.id), m = byMuseum.get(e?.museumId ?? "");
+    lines.push("BEGIN:VEVENT", `UID:${s.rowId ?? s.id}@night-atlas`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
+      `DTSTART;TZID=Europe/Amsterdam:${stamp(s.start)}`, `DTEND;TZID=Europe/Amsterdam:${stamp(s.end)}`,
+      `SUMMARY:${esc(e?.title ?? s.id)}`, `LOCATION:${esc([e?.venue, m?.address].filter(Boolean).join(", "))}`,
+      `DESCRIPTION:${esc([s.reason, e?.url].filter(Boolean).join("\n"))}`, "END:VEVENT");
+  }
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n");
+}
