@@ -145,3 +145,28 @@ export function toIcs(stops: UiStop[], title: string) {
   lines.push("END:VCALENDAR");
   return lines.join("\r\n");
 }
+
+export type MeetupIdea = { at: string; eventId: string; hostCrew: string; guestCrew: string; walk: number };
+
+/** Times when two crews' plans put them within ~10 minutes' walk, at an activity one of them is already at. */
+export function meetupIdeas(crews: { crewId: string; stops: UiStop[] }[], maxWalk = 10): MeetupIdea[] {
+  const out: MeetupIdea[] = [];
+  const timed = crews.map((c) => ({ crewId: c.crewId, slots: analyse(c.stops).slots }));
+  for (let i = 0; i < timed.length; i++) for (let j = i + 1; j < timed.length; j++) {
+    const a = timed[i], b = timed[j], seen = new Set<string>();
+    for (let t = START; t < END; t += 15) {
+      const sa = a.slots.find((s) => s.start <= t && t < s.end), sb = b.slots.find((s) => s.start <= t && t < s.end);
+      if (!sa || !sb) continue;
+      const toA = leg(sb.id, sa.id).minutes, toB = leg(sa.id, sb.id).minutes;
+      if (Math.min(toA, toB) > maxWalk) continue;
+      const [host, hostCrew, guestCrew, walked] = toA <= toB ? [sa, a.crewId, b.crewId, toA] : [sb, b.crewId, a.crewId, toB];
+      if (seen.has(host.id)) continue;
+      seen.add(host.id);
+      // Meet once the walking crew can be there, and while the host's activity is still on.
+      const at = roundUp5(t + walked);
+      if (host.window && at >= host.window[1]) continue;
+      out.push({ at: clock(at), eventId: host.id, hostCrew, guestCrew, walk: walked });
+    }
+  }
+  return out.sort((x, y) => minute(x.at) - minute(y.at)).slice(0, 4);
+}

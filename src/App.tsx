@@ -8,9 +8,11 @@ import { PersonalRoute } from "./components/personal-route";
 import { RouteIdeas, type Proposal } from "./components/route-ideas";
 import { ActivityFeed, describe, SyncPill } from "./components/live";
 import { Timeline } from "./components/timeline";
+import { RouteStop } from "./components/route-stop";
+import { Crews } from "./components/crews";
 import { Decide, REACTIONS, ReactionButtons, type ReactionKey } from "./components/decide";
 
-type Aside = "route" | "personal" | "ideas" | "decide" | "activity";
+type Aside = "route" | "personal" | "ideas" | "decide" | "crews" | "activity";
 type Undo = { text: string; ops: Op[] };
 
 /** Invite token -> night id, so a returning browser opens its nights without asking for a name again. */
@@ -22,7 +24,7 @@ const setPref = (k: string, v: string) => { try { localStorage.setItem(k, v); } 
 
 export default function App() {
   const { data, status, userId } = useSync();
-  const [target, setTarget] = useState<"shared" | "personal">("shared");
+  const [target, setTarget] = useState<"shared" | "personal" | "crew">("shared");
   const [asideMode, setAsideMode] = useState<Aside>("route"), [previewId, setPreviewId] = useState<string | null>(null);
   const [category, setCategory] = useState("Activities"), [query, setQuery] = useState(""), [tag, setTag] = useState("All types"), [view, setView] = useState("Explore"), [suggestedOnly, setSuggestedOnly] = useState(false), [personFilter, setPersonFilter] = useState("all");
   const [invite, setInvite] = useState(""), [nightId, setNightId] = useState("");
@@ -36,6 +38,9 @@ export default function App() {
   const identity = night?.me;
   const route = night?.stopsOf(night.shared?.id) ?? [];
   const myRoute = night?.stopsOf(night.mine?.id) ?? [];
+  const crewRoute = night?.crewRoute(night.myCrewId);
+  const crewStops = night?.stopsOf(crewRoute?.id) ?? [];
+  const myCrewName = data?.na_crews.find((c) => c.id === night?.myCrewId)?.name;
   const proposals: Proposal[] = useMemo(() => (night?.personal ?? []).map((r) => ({
     id: r.id, member_id: r.owner_user!, title: r.title || (night!.memberOf.get(r.owner_user!)?.display_name ?? "Someone") + "’s route",
     description: r.description, practical: r.practical, route: night!.stopsOf(r.id), checked_at: r.updated_at,
@@ -106,6 +111,8 @@ export default function App() {
   const title = (id: string) => byId.get(id)?.title ?? "stop";
 
   function addShared(id: string) { if (night?.shared) run(addStopOps(night.shared, route, id), `Added ${title(id)} to our route`); }
+  function addCrew(id: string) { if (crewRoute) run(addStopOps(crewRoute, crewStops, id), `Added ${title(id)} to ${myCrewName}’s route`); }
+  function addTo(id: string) { if (target === "personal") addPersonal(id); else if (target === "crew") addCrew(id); else addShared(id); }
   function addPersonal(id: string) {
     if (!night || !identity) { setNameDialog(true); return; }
     if (night.mine) run(addStopOps(night.mine, myRoute, id), `Added ${title(id)} to your route`);
@@ -180,7 +187,9 @@ export default function App() {
   const suggesters = (id: string) => suggestions.filter((s) => s.event_id === id);
   const uniqueVenues = new Set(route.map((s) => byId.get(s.id)?.museumId)).size;
   const lastSharedChange = data?.na_activity.filter((a) => a.data.route_kind === "shared" || a.kind === "route_adopt").sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
-  const lines: MapLine[] = useMemo(() => [{ stops: mapRoute, color: "#de654b", numbered: true }], [mapRoute]);
+  const lines: MapLine[] = useMemo(() => asideMode === "crews" && !previewStops && night && data?.na_crews.length
+    ? data.na_crews.map((c) => ({ stops: night.stopsOf(night.crewRoute(c.id)?.id), color: c.color, numbered: c.id === night.myCrewId }))
+    : [{ stops: mapRoute, color: "#de654b", numbered: true }], [mapRoute, asideMode, previewStops, night, data?.na_crews]);
   const viewToggle = <div className="view-toggle" role="group" aria-label="Route view">
     {(["list", "timeline"] as const).map((v) => <button key={v} aria-pressed={routeView === v} className={routeView === v ? "on" : ""} onClick={() => { setRouteView(v); setPreviewStops(null); }}>{v === "list" ? "List" : "Timeline"}</button>)}
   </div>;
@@ -221,18 +230,18 @@ export default function App() {
           <label className="search"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search places, activities…" aria-label="Search places and activities" />{query && <button aria-label="Clear search" onClick={() => setQuery("")}><X size={15} /></button>}</label>
           <div className="filter-row"><select value={tag} onChange={(e) => setTag(e.target.value)} aria-label="Activity type" disabled={category === "Museums"}><option>All types</option>{types.map((t) => <option key={t}>{t}</option>)}</select><button className={"suggested-filter " + (suggestedOnly ? "active" : "")} onClick={() => setSuggestedOnly(!suggestedOnly)}><Star size={14} />Picks</button></div>
           {suggestedOnly && <select className="person-select" aria-label="Filter suggestions by person" value={personFilter} onChange={(e) => setPersonFilter(e.target.value)}><option value="all">Everyone’s picks</option>{people.map((m) => <option key={m.id} value={m.id}>{m.name}{m.fictional ? " · fictional" : ""}</option>)}</select>}
-          <label className="add-target">Add stops to<select aria-label="Add stops to" value={target} onChange={(e) => { const v = e.target.value as "shared" | "personal"; setTarget(v); if (v === "personal") { setAsideMode("personal"); setPreviewId(null); } }}><option value="shared">Our shared route</option><option value="personal">My personal route</option></select></label>
+          <label className="add-target">Add stops to<select aria-label="Add stops to" value={target} onChange={(e) => { const v = e.target.value as "shared" | "personal" | "crew"; setTarget(v); if (v !== "shared") { setAsideMode(v === "crew" ? "crews" : "personal"); setPreviewId(null); } }}><option value="shared">Our shared route</option><option value="personal">My personal route</option>{crewRoute && <option value="crew">{myCrewName}’s route</option>}</select></label>
           <div className="results-line"><span>{filtered.length} {category === "Museums" ? "museums" : "options"} to discover</span><span>⌖ Amsterdam</span></div>
         </div>
         <div className="event-list">
           {filtered.length === 0 && <div className="empty"><Search size={26} /><h3>No matches yet</h3><p>Try another search or filter. Your next discovery is out there.</p><button onClick={() => { setQuery(""); setTag("All types"); setSuggestedOnly(false); }}>Clear filters</button></div>}
           {filtered.map((e) => {
-            const chosen = (target === "personal" ? myRoute : route).some((s) => s.id === e.id), food = e.tags.includes(FOOD);
+            const chosen = (target === "personal" ? myRoute : target === "crew" ? crewStops : route).some((s) => s.id === e.id), food = e.tags.includes(FOOD);
             return <article key={e.id} className={"event-card " + (chosen ? "on-route" : "")}>
               <div className="card-topline"><span className={"type-label " + (food ? "food-label" : "")}>{e.id.startsWith("museum:") ? "MUSEUM" : food ? "FOOD & DRINK" : e.tags[0] || "DISCOVER"}</span><ReactionButtons value={myReaction(e.id)} onChange={(r) => react(e.id, r)} title={e.title} /></div>
               <button className="card-title" onClick={() => pick(e)}>{e.title}<ArrowUpRight size={16} /></button>
               {!e.id.startsWith("museum:") && <p className="venue"><MapPin size={13} />{e.venue}</p>}
-              <div className="card-bottom"><span><Clock size={13} />{e.time.replace(" - ", " – ")}</span><button className={chosen ? "added" : "add-button"} disabled={chosen} onClick={() => (target === "personal" ? addPersonal(e.id) : addShared(e.id))} aria-label={(target === "personal" ? "Add to my route: " : "Add to route: ") + e.title}>{chosen ? <><Check size={14} />Added</> : <><Plus size={14} />{target === "personal" ? "My route" : "Route"}</>}</button></div>
+              <div className="card-bottom"><span><Clock size={13} />{e.time.replace(" - ", " – ")}</span><button className={chosen ? "added" : "add-button"} disabled={chosen} onClick={() => addTo(e.id)} aria-label={(target === "personal" ? "Add to my route: " : target === "crew" ? "Add to my crew's route: " : "Add to route: ") + e.title}>{chosen ? <><Check size={14} />Added</> : <><Plus size={14} />{target === "personal" ? "My route" : target === "crew" ? "Crew" : "Route"}</>}</button></div>
               {suggesters(e.id).length > 0 && <div className="suggested-by">{suggesters(e.id).map((s) => { const R = REACTIONS.find((x) => x.key === s.reaction)!; return <span key={s.member_id} title={(s.note || R.label)}><R.Icon size={10} />{nameOf(s.member_id)}</span>; })}</div>}
             </article>;
           })}
@@ -242,10 +251,11 @@ export default function App() {
 
       <section className="map-panel" aria-label="Amsterdam map">
         <MapView visible={proposal ? proposal.route.map((s) => byId.get(s.id)!).filter(Boolean) : asideMode === "personal" ? myRoute.map((s) => byId.get(s.id)!).filter(Boolean) : filtered} lines={lines} onSelect={pick} focus={focus} fit={fit} />
-        <div className="map-caption"><span className="live-dot" />{previewStops ? "ROUTE PREVIEW" : proposal ? "ROUTE IDEA PREVIEW" : asideMode === "personal" ? "MY PERSONAL ROUTE" : "AMSTERDAM AT NIGHT"}</div>
+        <div className="map-caption"><span className="live-dot" />{previewStops ? "ROUTE PREVIEW" : proposal ? "ROUTE IDEA PREVIEW" : asideMode === "personal" ? "MY PERSONAL ROUTE" : asideMode === "crews" && data?.na_crews.length ? "CREW ROUTES" : "AMSTERDAM AT NIGHT"}</div>
         {proposal && <div className="preview-banner"><span>{proposal.title}</span><button onClick={() => setPreviewId(null)} aria-label="Close route preview"><X size={15} /></button></div>}
         <button className="fit-button" onClick={() => setFit(fit + 1)}><Compass size={16} />{proposal ? "Fit preview" : asideMode === "personal" ? "Fit my route" : route.length ? "Fit our route" : "Reset map"}</button>
-        <div className="map-legend"><span><i className="legend-museum" />Places & activities</span><span><i className="legend-food" />Food & drink</span><span><i className="legend-route" />{proposal ? "Route idea" : asideMode === "personal" ? "My route" : "Our route"}</span></div>
+        <div className="map-legend"><span><i className="legend-museum" />Places & activities</span><span><i className="legend-food" />Food & drink</span>{asideMode === "crews" && !previewStops && data?.na_crews.length ? data.na_crews.map((c) => <span key={c.id}><i style={{ background: c.color }} />{c.name}</span>)
+          : <span><i className="legend-route" />{previewStops ? "Preview" : proposal ? "Route idea" : asideMode === "personal" ? "My route" : "Our route"}</span>}</div>
         <div className="map-bottom-note">Numbers show options at each venue · coral numbers show stop order</div>
       </section>
 
@@ -256,6 +266,7 @@ export default function App() {
           <button className={asideMode === "personal" ? "active" : ""} onClick={() => { setAsideMode("personal"); setTarget("personal"); setPreviewId(null); }}>My route</button>
           <button className={asideMode === "ideas" ? "active" : ""} onClick={() => setAsideMode("ideas")}>Ideas <span>{proposals.filter((p) => p.route.length).length}</span></button>
           <button className={asideMode === "decide" ? "active" : ""} onClick={() => setAsideMode("decide")}>Decide</button>
+          <button className={asideMode === "crews" ? "active" : ""} onClick={() => setAsideMode("crews")}>Crews</button>
           <button className={asideMode === "activity" ? "active" : ""} onClick={() => setAsideMode("activity")}>Activity</button>
         </nav>}
         {loading ? <div className="start-plan"><div className="illustration"><Moon size={38} /></div><h3>Loading your night…</h3></div>
@@ -275,6 +286,8 @@ export default function App() {
             onDeadline={identity?.role === "organiser" ? (iso) => run([{ t: "update", table: "na_nights", id: night.night!.id, patch: { vote_deadline: iso } }]) : null}
             onVote={vote} onPreview={(p) => { setPreviewStops(p); if (p) setFit((f) => f + 1); }} onPropose={proposeMine}
             onUseShared={canEditShared && night.shared ? (stops) => { run(replaceRouteOps(night.shared!, route, stops), "Replaced our route with the draft"); setAsideMode("route"); } : null} />
+        : asideMode === "crews" && data && night ? <Crews data={data} night={night} userId={userId} canWrite={canEditShared} shared={route} run={run} onPick={pick}
+            onChooseStops={() => { setTarget("crew"); setView("Explore"); }} onPreview={(p) => { setPreviewStops(p); if (p) setFit((f) => f + 1); }} onPropose={proposeMine} routeView={routeView} toggle={viewToggle} />
         : asideMode === "activity" && data && night ? <section className="activity-panel"><div className="group-strip"><div><strong>What changed</strong><SyncPill status={status} /></div></div><ActivityFeed data={data} night={night} /></section>
         : !identity ? <div className="start-plan"><div className="illustration"><Moon size={38} /><Sparkles size={20} /></div><h3>{invite ? "Your friends are planning a night." : "Good nights start with good company."}</h3><p>{invite ? "Add your name to join in." : "Create your group, then send the invite link to your friends."}</p>{!nameDialog && joinForm}</div>
         : <>
@@ -291,7 +304,7 @@ export default function App() {
               {routeView === "timeline"
                 ? <Timeline stops={route} title="Our route" onPick={pick} onPropose={proposeMine} onPreview={(p) => { setPreviewStops(p); if (p) setFit((f) => f + 1); }}
                     onReschedule={(next, label) => run(rescheduleOps(route, next), label)} />
-                : route.map((s, index) => <SharedStop key={s.rowId} s={s} index={index} route={route} onPick={pick} run={run} />)}
+                : route.map((s, index) => <RouteStop key={s.rowId} s={s} index={index} route={route} onPick={pick} run={run} routeName="our route" />)}
               <div className="route-disclaimer">The dashed line connects stops in order. Use directions for streets, crossings, and ferries. Travel and queue time are not included.</div>
               {lastSharedChange && data && night && <p className="last-editor">Last change: {describe(lastSharedChange, data, night)}</p>}
             </>}
@@ -319,6 +332,7 @@ export default function App() {
       <div className="detail-actions">
         <button className="primary" disabled={route.some((s) => s.id === selected.id)} onClick={() => addShared(selected.id)}>{route.some((s) => s.id === selected.id) ? <><Check size={16} />In our route</> : <><Plus size={16} />Add to our route</>}</button>
         <button className="secondary" disabled={myRoute.some((s) => s.id === selected.id)} onClick={() => addPersonal(selected.id)}><Plus size={16} />My route</button>
+        {crewRoute && <button className="secondary" disabled={crewStops.some((s) => s.id === selected.id)} onClick={() => addCrew(selected.id)}><Plus size={16} />{myCrewName}</button>}
       </div>
       <ReactionButtons big value={myReaction(selected.id)} onChange={(r) => react(selected.id, r, note)} title={selected.title} />
       <label className="note-label">Why you’d like to go <span>(optional)</span><textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={240} placeholder="This looks like our kind of thing…" /></label>
@@ -333,28 +347,4 @@ export default function App() {
       {error && <p className="dialog-error" role="alert">{error}</p>}{joinForm}
     </section></div>}
   </main>;
-}
-
-/** One stop of the shared route with its reorder, remove and timing controls. */
-function SharedStop({ s, index, route, onPick, run }: { s: UiStop; index: number; route: UiStop[]; onPick: (e: Item) => void; run: (ops: Op[], label?: string) => void }) {
-  const e = byId.get(s.id);
-  if (!e) return null;
-  const m = byMuseum.get(e.museumId || ""), prev = index ? byMuseum.get(byId.get(route[index - 1].id)?.museumId || "") : null;
-  const warning = warnings(s);
-  const isBackwards = index > 0 && s.arrival && route[index - 1].arrival && minute(s.arrival) < minute(route[index - 1].arrival) + route[index - 1].duration;
-  return <div className="route-stop"><span className="stop-number">{index + 1}</span><div className="stop-body">
-    <button className="stop-title" onClick={() => onPick(e)}>{e.title}</button><p>{e.venue}</p><span className="stop-hours">{e.time}</span>
-    {s.reason && <p className="chosen-reason">{s.reason}</p>}{s.practical && <small className="chosen-practical">{s.practical}</small>}
-    <div className="stop-tools">
-      <button disabled={index === 0} aria-label={"Move earlier: " + e.title} onClick={() => run(reorderOps(route, index, index - 1), `Moved ${e.title} earlier`)}><ArrowUp size={13} /></button>
-      <button disabled={index === route.length - 1} aria-label={"Move later: " + e.title} onClick={() => run(reorderOps(route, index, index + 1), `Moved ${e.title} later`)}><ArrowDown size={13} /></button>
-      <button className="remove-stop" aria-label={"Remove stop: " + e.title} onClick={() => run(removeOps(s), `Removed ${e.title} from our route`)}><X size={13} /></button>
-    </div>
-    <div className="timing">
-      <label>Arrive<input key={s.rowId + s.arrival} type="time" aria-label={"Arrival at " + e.title} defaultValue={s.arrival} onBlur={(ev) => { if (ev.target.value !== s.arrival) run(timingOps(s, ev.target.value, s.duration), `Changed arrival at ${e.title}`); }} /></label>
-      <label>Stay<select value={s.duration} aria-label={"Duration at " + e.title} onChange={(ev) => run(timingOps(s, s.arrival, Number(ev.target.value)))}>{Array.from(new Set([15, 30, 45, 60, 90, 120, s.duration])).sort((a, b) => a - b).map((n) => <option value={n} key={n}>{n} min</option>)}</select></label>
-    </div>
-    {(warning || isBackwards) && <small className="time-warning">{warning || "This overlaps the previous visit. Allow time to travel, too."}</small>}
-    {m && <a className="directions" href={"https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(m.address + ", Amsterdam") + (prev ? "&origin=" + encodeURIComponent(prev.address + ", Amsterdam") : "") + "&travelmode=walking"} target="_blank" rel="noreferrer">{prev ? "Directions from previous stop" : "Directions to this stop"}<ArrowUpRight size={12} /></a>}
-  </div></div>;
 }
