@@ -7,7 +7,7 @@ const { museums } = JSON.parse(readFileSync(new URL("../src/data/catalogue.json"
 const venues = museums.filter((m) => m.lat != null);
 const coords = venues.map((m) => `${m.lng.toFixed(6)},${m.lat.toFixed(6)}`).join(";");
 const url = `https://routing.openstreetmap.de/routed-foot/table/v1/foot/${coords}?annotations=duration,distance`;
-const res = await fetch(url, { headers: { "User-Agent": "museumhopper (one-off build of a museum-night walking matrix)" } });
+const res = await fetch(url, { headers: { "User-Agent": "museumhop (one-off build of a museum-night walking matrix)" } });
 if (!res.ok) throw new Error(`Routing service answered ${res.status}`);
 const body = await res.json();
 if (body.code !== "Ok") throw new Error(`Routing service: ${body.code} ${body.message ?? ""}`);

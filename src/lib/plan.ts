@@ -134,10 +134,10 @@ export function toIcs(stops: UiStop[], title: string) {
   const { slots } = analyse(stops);
   const stamp = (n: number) => `2026110${n >= 24 * 60 ? 8 : 7}T${clock(n).replace(":", "")}00`;
   const esc = (s: string) => s.replace(/[\\;,]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
-  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//MuseumHopper//EN", "CALSCALE:GREGORIAN", `X-WR-CALNAME:${esc(title)}`];
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//MuseumHop//EN", "CALSCALE:GREGORIAN", `X-WR-CALNAME:${esc(title)}`];
   for (const s of slots) {
     const e = byId.get(s.id), m = byMuseum.get(e?.museumId ?? "");
-    lines.push("BEGIN:VEVENT", `UID:${s.rowId ?? s.id}@museumhopper`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
+    lines.push("BEGIN:VEVENT", `UID:${s.rowId ?? s.id}@museumhop`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
       `DTSTART;TZID=Europe/Amsterdam:${stamp(s.start)}`, `DTEND;TZID=Europe/Amsterdam:${stamp(s.end)}`,
       `SUMMARY:${esc(e?.title ?? s.id)}`, `LOCATION:${esc([e?.venue, m?.address].filter(Boolean).join(", "))}`,
       `DESCRIPTION:${esc([s.reason, e?.url].filter(Boolean).join("\n"))}`, "END:VEVENT");

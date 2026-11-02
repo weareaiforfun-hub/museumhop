@@ -11,10 +11,15 @@ import { Timeline } from "./components/timeline";
 import { RouteStop } from "./components/route-stop";
 import { Crews } from "./components/crews";
 import { BrandMark } from "./components/brand-mark";
+import { HelpButton, Onboarding, type Place } from "./components/onboarding";
 import exampleIdeas from "./data/route-ideas.json";
 import { Decide, REACTIONS, ReactionButtons, type ReactionKey } from "./components/decide";
 
-type Aside = "route" | "personal" | "ideas" | "decide" | "crews" | "activity";
+type Aside = "route" | "personal" | "ideas" | "suggested" | "decide" | "crews" | "activity";
+
+/** The four built-in route suggestions: readable by everyone, with or without a night. */
+const SUGGESTED: Proposal[] = exampleIdeas.map((idea, i) => ({ id: "suggested-" + (i + 1), member_id: "museumhop", title: idea.title, description: idea.description, practical: idea.practical, route: idea.route, checked_at: "" }));
+const SUGGESTER = [{ id: "museumhop", name: "Suggested route" }];
 type Undo = { text: string; ops: Op[] };
 
 /** Invite token -> night id, so a returning browser opens its nights without asking for a name again. */
@@ -35,6 +40,7 @@ export default function App() {
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [toast, setToast] = useState(""), [undo, setUndo] = useState<Undo | null>(null), [nameDialog, setNameDialog] = useState(false);
   const [routeView, setRouteView] = useState<"list" | "timeline">("list"), [previewStops, setPreviewStops] = useState<UiStop[] | null>(null);
   const openedIdeas = useRef(false);
+  const [pendingSuggestion, setPendingSuggestion] = useState<string | null>(null), [helpOpen, setHelpOpen] = useState(false);
 
   const night = useMemo(() => (data ? derive(data, userId) : null), [data, userId]);
   const identity = night?.me;
@@ -51,7 +57,7 @@ export default function App() {
   const suggestions = useMemo(() => (data?.na_reactions ?? []).filter((r) => r.reaction !== "skip").map((r) => ({ member_id: r.user_id, event_id: r.event_id, note: r.note, id: r.id, reaction: r.reaction })), [data]);
   const myReaction = (eventId: string) => data?.na_reactions.find((r) => r.user_id === userId && r.event_id === eventId)?.reaction;
   const canEditShared = !!identity && identity.role !== "viewer";
-  const proposal = proposals.find((p) => p.id === previewId);
+  const proposal = proposals.find((p) => p.id === previewId) ?? SUGGESTED.find((p) => p.id === previewId);
   const mapRoute = previewStops || proposal?.route || (asideMode === "personal" ? myRoute : route);
   const realMembers = night?.members.filter((m) => !m.fictional) ?? [];
   const nameOf = (uid: string) => night?.memberOf.get(uid)?.display_name;
@@ -101,6 +107,12 @@ export default function App() {
     if (requested && proposals.some((p) => p.id === requested)) { setAsideMode("ideas"); setPreviewId(requested); setFit((f) => f + 1); }
   }, [proposals.length]);
   useEffect(() => { document.querySelector(".itinerary")?.scrollTo({ top: 0 }); setPreviewStops(null); }, [previewId, asideMode]);
+  useEffect(() => { document.querySelector(".itinerary-tabs .active")?.scrollIntoView({ block: "nearest", inline: "center" }); }, [asideMode]);
+  /* On phones, switching views lands at the top of the new view rather than mid-page. */
+  useEffect(() => {
+    const nav = document.querySelector<HTMLElement>(".mobile-nav");
+    if (nav && getComputedStyle(nav).display !== "none" && nav.getBoundingClientRect().top < 0) window.scrollTo({ top: window.scrollY + nav.getBoundingClientRect().top });
+  }, [view]);
 
   /* ---------- changes ---------- */
   /** Shows ops at once and saves them; with a label, offers to undo. */
@@ -149,13 +161,25 @@ export default function App() {
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
-  async function addExamples() {
-    if (!night?.night) return;
-    setBusy(true);
-    try { await sync!.rpc("na_add_examples", { p_night: night.night.id, p_ideas: exampleIdeas }); setToast("Added 4 example route ideas from fictional planners."); }
-    catch (e) { setError((e as Error).message); }
-    finally { setBusy(false); }
+  /** Makes a suggested route our shared route; without a night yet, creates one first. */
+  function adoptSuggested(id: string) {
+    const idea = SUGGESTED.find((p) => p.id === id);
+    if (!idea) return;
+    if (!identity || !night?.shared) { setPendingSuggestion(id); setNameDialog(true); return; }
+    if (!canEditShared) { setError("Viewers can’t change the shared route. Ask the organiser for a planner link."); return; }
+    run(replaceRouteOps(night.shared, route, idea.route), `Using “${idea.title}” as our route`);
+    setPreviewId(null); setAsideMode("route"); setTarget("shared"); setFit((f) => f + 1);
   }
+  useEffect(() => {
+    if (!pendingSuggestion || !identity || !night?.shared) return;
+    const id = pendingSuggestion;
+    setPendingSuggestion(null);
+    // A night that already has stops (we joined friends) keeps them until someone confirms the swap.
+    if (route.length) { setAsideMode("suggested"); setPreviewId(id); setToast("You joined. Using this route would replace the group’s stops, so confirm below."); }
+    else adoptSuggested(id);
+    // Runs once the night we just created or joined has loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSuggestion, identity?.id, night?.shared?.id]);
   async function enter() {
     if (!sync || !name.trim()) return;
     setBusy(true); setError("");
@@ -216,16 +240,17 @@ export default function App() {
     </form>
   );
 
-  if (!sync) return <main className="config-missing"><h1>MuseumHopper</h1><p>The backend isn't configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.</p></main>;
+  if (!sync) return <main className="config-missing"><h1>MuseumHop</h1><p>The backend isn't configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.</p></main>;
 
   return <main>
     <header className="topbar">
-      <a href="./" className="brand" aria-label="MuseumHopper home"><span className="brand-icon"><BrandMark /></span><span>museum<span className="brand-light">hopper</span><small>AMSTERDAM, AFTER HOURS</small></span></a>
+      <a href="./" className="brand" aria-label="MuseumHop home"><span className="brand-icon"><BrandMark /></span><span>museum<span className="brand-light">hop</span><small>AMSTERDAM, AFTER HOURS</small></span></a>
       <div className="event-date"><span className="live-dot" />SAT 7 NOV 2026<span className="date-divider" />19:00 — 02:00</div>
       <div className="header-actions">
         {invite && !identity && !loading && <button className="secondary join-button" onClick={() => setNameDialog(true)}>Join this night</button>}
         {identity && <button className="profile" onClick={() => { setName(identity.display_name); setColor(identity.color); setNameDialog(true); }}><span className="avatar" style={{ background: identity.color, color: "#fff" }}>{initials(identity.display_name)}</span><span>{identity.display_name}</span></button>}
-        <button className="primary share-button" onClick={share}><Share2 size={16} /><span>{invite ? "Invite friends" : "Plan with friends"}</span></button>
+        <HelpButton onClick={() => setHelpOpen(true)} />
+        <button className="primary share-button" aria-label={invite ? "Invite friends" : "Plan with friends"} onClick={share}><Share2 size={16} /><span>{invite ? "Invite friends" : "Plan with friends"}</span></button>
       </div>
     </header>
     <div className="intro"><div><span className="eyebrow">ONE NIGHT. A CITY OF POSSIBILITIES.</span><h1>Make a night of it<span>.</span></h1><p>Find your favourites. Bring your people. Follow your curiosity.</p></div><a href="https://museumnacht.amsterdam/programma" target="_blank" rel="noreferrer" className="source-link">Official programme<ArrowUpRight size={16} /></a></div>
@@ -263,9 +288,9 @@ export default function App() {
         <div className="map-caption"><span className="live-dot" />{previewStops ? "ROUTE PREVIEW" : proposal ? "ROUTE IDEA PREVIEW" : asideMode === "personal" && myRoute.length ? "MY PERSONAL ROUTE" : asideMode === "crews" && data?.na_crews.length ? "CREW ROUTES" : "AMSTERDAM AT NIGHT"}</div>
         {proposal && <div className="preview-banner"><span>{proposal.title}</span><button onClick={() => setPreviewId(null)} aria-label="Close route preview"><X size={15} /></button></div>}
         <button className="fit-button" onClick={() => setFit(fit + 1)}><Compass size={16} />{proposal ? "Fit preview" : asideMode === "personal" ? "Fit my route" : route.length ? "Fit our route" : "Reset map"}</button>
-        <div className="map-legend"><span><i className="legend-museum" />Places & activities</span><span><i className="legend-food" />Food & drink</span>{asideMode === "crews" && !previewStops && data?.na_crews.length ? data.na_crews.map((c) => <span key={c.id}><i style={{ background: c.color }} />{c.name}</span>)
+        <div className="map-legend"><span><i className="legend-museum" />Venue</span><span><i className="legend-food" />Food & drink</span><span><i className="legend-cluster" />Several venues</span>{asideMode === "crews" && !previewStops && data?.na_crews.length ? data.na_crews.map((c) => <span key={c.id}><i style={{ background: c.color }} />{c.name}</span>)
           : <span><i className="legend-route" />{previewStops ? "Preview" : proposal ? "Route idea" : asideMode === "personal" ? "My route" : "Our route"}</span>}</div>
-        <div className="map-bottom-note">Numbers show options at each venue · coral numbers show stop order</div>
+        <div className="map-bottom-note">Bigger dots have more on · tap a ring to zoom in · coral numbers show stop order</div>
       </section>
 
       <aside className="itinerary" aria-label="Shared itinerary">
@@ -274,9 +299,14 @@ export default function App() {
           <button className={asideMode === "route" ? "active" : ""} onClick={() => { setAsideMode("route"); setTarget("shared"); setPreviewId(null); }}>Our route</button>
           <button className={asideMode === "personal" ? "active" : ""} onClick={() => { setAsideMode("personal"); setTarget("personal"); setPreviewId(null); }}>My route</button>
           <button className={asideMode === "ideas" ? "active" : ""} onClick={() => setAsideMode("ideas")}>Ideas <span>{proposals.filter((p) => p.route.length).length}</span></button>
+          <button data-tour="suggested" className={asideMode === "suggested" ? "active" : ""} onClick={() => { setAsideMode("suggested"); setPreviewId(null); }}>Suggested <span>{SUGGESTED.length}</span></button>
           <button className={asideMode === "decide" ? "active" : ""} onClick={() => setAsideMode("decide")}>Decide</button>
           <button className={asideMode === "crews" ? "active" : ""} onClick={() => setAsideMode("crews")}>Crews</button>
           <button className={asideMode === "activity" ? "active" : ""} onClick={() => setAsideMode("activity")}>Activity</button>
+        </nav>}
+        {!identity && !loading && <nav className="itinerary-tabs" aria-label="Route choices">
+          <button className={asideMode !== "suggested" ? "active" : ""} onClick={() => { setAsideMode("route"); setPreviewId(null); }}>{invite ? "Join" : "Start"}</button>
+          <button data-tour="suggested" className={asideMode === "suggested" ? "active" : ""} onClick={() => { setAsideMode("suggested"); setPreviewId(null); }}>Suggested routes <span>{SUGGESTED.length}</span></button>
         </nav>}
         {loading ? <div className="start-plan"><div className="illustration"><Moon size={38} /></div><h3>Loading your night…</h3></div>
         : asideMode === "personal" && identity && routeView === "timeline" && myRoute.length ? <section className="personal-route"><h3>My route</h3>{viewToggle}
@@ -290,7 +320,8 @@ export default function App() {
             onCopyShared={() => run(personalRouteOps(identity.night_id, userId, night!.mine, identity.display_name + "’s route", route, myRoute).ops)}
             onExplore={() => { setTarget("personal"); setView("Explore"); }}
             onPreview={() => { setAsideMode("ideas"); setPreviewId(night!.mine?.id || null); setFit((f) => f + 1); setView("Map"); }} toggle={viewToggle} />
-        : asideMode === "ideas" && night ? <RouteIdeas votes={data?.na_idea_votes ?? []} onAddExamples={identity?.role === "organiser" && !night.members.some((m) => m.fictional) ? addExamples : undefined} proposals={proposals} members={people} events={byId} previewId={previewId} onPreview={(id) => { setPreviewId(id); setFit((f) => f + 1); if (id) setView("Map"); }} onAdopt={adoptIdea} onSelect={pick} busy={busy} currentRoute={route} />
+        : asideMode === "ideas" && night ? <RouteIdeas votes={data?.na_idea_votes ?? []} proposals={proposals} members={people} events={byId} previewId={previewId} onPreview={(id) => { setPreviewId(id); setFit((f) => f + 1); if (id) setView("Map"); }} onAdopt={adoptIdea} onSelect={pick} busy={busy} currentRoute={route} />
+        : asideMode === "suggested" ? <RouteIdeas suggested proposals={SUGGESTED} members={SUGGESTER} events={byId} previewId={previewId} onPreview={(id) => { setPreviewId(id); setFit((f) => f + 1); if (id) setView("Map"); }} onAdopt={async (id) => adoptSuggested(id)} onSelect={pick} busy={busy} currentRoute={identity ? route : []} />
         : asideMode === "decide" && data && night ? <Decide data={data} night={night} userId={userId} proposals={proposals} onPick={pick} onReact={(id, r) => react(id, r)}
             onDeadline={identity?.role === "organiser" ? (iso) => run([{ t: "update", table: "na_nights", id: night.night!.id, patch: { vote_deadline: iso } }]) : null}
             onVote={vote} onPreview={(p) => { setPreviewStops(p); if (p) setFit((f) => f + 1); }} onPropose={proposeMine}
@@ -298,7 +329,7 @@ export default function App() {
         : asideMode === "crews" && data && night ? <Crews data={data} night={night} userId={userId} canWrite={canEditShared} shared={route} run={run} onPick={pick}
             onChooseStops={() => { setTarget("crew"); setView("Explore"); }} onPreview={(p) => { setPreviewStops(p); if (p) setFit((f) => f + 1); }} onPropose={proposeMine} routeView={routeView} toggle={viewToggle} />
         : asideMode === "activity" && data && night ? <section className="activity-panel"><div className="group-strip"><div><strong>What changed</strong><SyncPill status={status} /></div></div><ActivityFeed data={data} night={night} /></section>
-        : !identity ? <div className="start-plan"><div className="illustration"><Moon size={38} /><Sparkles size={20} /></div><h3>{invite ? "Your friends are planning a night." : "Good nights start with good company."}</h3><p>{invite ? "Add your name to join in." : "Create your group, then send the invite link to your friends."}</p>{!nameDialog && joinForm}</div>
+        : !identity ? <div className="start-plan"><div className="illustration"><Moon size={38} /><Sparkles size={20} /></div><h3>{invite ? "Your friends are planning a night." : "Good nights start with good company."}</h3><p>{invite ? "Add your name to join in." : "Create your group, then send the invite link to your friends."}</p>{!nameDialog && joinForm}<button className="text-button suggested-teaser" onClick={() => setAsideMode("suggested")}>Or start from one of {SUGGESTED.length} suggested routes<ChevronRight size={15} /></button></div>
         : <>
           <div className="group-strip">
             <div className="avatar-stack">{realMembers.slice(0, 5).map((m) => <span className="avatar" title={m.display_name} key={m.id} style={{ background: m.color, color: "#fff" }}>{initials(m.display_name)}</span>)}</div>
@@ -349,6 +380,11 @@ export default function App() {
       {suggesters(selected.id).length > 0 && <div className="detail-suggestions">{suggesters(selected.id).map((s) => <p key={s.member_id}><b>{nameOf(s.member_id)}</b> · {REACTIONS.find((x) => x.key === s.reaction)!.label}{s.note ? ": " + s.note : ""}</p>)}</div>}
       {selected.id.startsWith("museum:") && <div className="museum-activities"><h3>What’s on here</h3>{activities.filter((e) => e.museumId === selected.museumId).map((e) => <button key={e.id} onClick={() => pick(e)}><span>{e.title}<small>{e.time} · {e.tags.join(" · ")}</small></span><ChevronRight size={16} /></button>)}</div>}
     </section></div>}
+    <Onboarding inNight={!!identity} helpOpen={helpOpen} setHelpOpen={setHelpOpen} show={(p: Place) => {
+      setSelected(null); setPreviewId(null);
+      if (p.view) setView(p.view);
+      if (p.aside && (identity || p.aside === "route" || p.aside === "suggested")) setAsideMode(p.aside);
+    }} />
     {nameDialog && <div className="modal-backdrop" onClick={() => setNameDialog(false)}><section className="name-modal" role="dialog" aria-modal="true" aria-label={identity ? "Your name" : "Join the night"} onClick={(e) => e.stopPropagation()}>
       <button className="modal-close" aria-label="Close" onClick={() => setNameDialog(false)}><X size={20} /></button><Moon size={32} />
       <h2>{identity ? "Your name" : invite ? "Join your friends" : "Start your shared night"}</h2>

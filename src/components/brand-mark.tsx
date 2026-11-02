@@ -1,4 +1,4 @@
-/** MuseumHopper's mark: one dashed hop from a stop (lime) to the next (coral). Same drawing as the favicon. */
+/** MuseumHop's mark: one dashed hop from a stop (lime) to the next (coral). Same drawing as the favicon. */
 export function BrandMark({ size = 30 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="6 12 52 46" aria-hidden="true">

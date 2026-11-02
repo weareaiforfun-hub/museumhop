@@ -31,7 +31,7 @@ export function Timeline({ stops, title, onReschedule, onPropose, onPreview, onP
 
   function download() {
     const url = URL.createObjectURL(new Blob([toIcs(stops, title)], { type: "text/calendar" }));
-    const a = Object.assign(document.createElement("a"), { href: url, download: "museumhopper.ics" });
+    const a = Object.assign(document.createElement("a"), { href: url, download: "museumhop.ics" });
     a.click();
     URL.revokeObjectURL(url);
   }

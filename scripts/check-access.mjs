@@ -1,4 +1,4 @@
-// Checks MuseumHopper's access rules against the real database with three anonymous users: an organiser, a friend
+// Checks MuseumHop's access rules against the real database with three anonymous users: an organiser, a friend
 // who joins by invite, and an outsider. Creates one night named "access-check". Usage: npm run check-access
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
