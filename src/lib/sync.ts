@@ -1,4 +1,5 @@
 import { createClient, type RealtimeChannel, type SupabaseClient } from "@supabase/supabase-js";
+import { leaving } from "./handoff";
 
 /* Rows exactly as they are stored in Supabase (to-one project, na_ tables). */
 export type Night = { id: string; name: string; event_date: string; vote_deadline: string | null; route_locked_at: string | null; created_by: string };
@@ -272,5 +273,5 @@ export class NightSync {
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
-export const sync = url && key ? new NightSync(url, key) : null;
+export const sync = url && key && !leaving ? new NightSync(url, key) : null;
 if (import.meta.env.DEV) (window as unknown as { __sync: unknown }).__sync = sync;
