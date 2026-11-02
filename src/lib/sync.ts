@@ -70,7 +70,18 @@ export class NightSync {
     this.sb = sb;
     this.ready = (async () => {
       const { data } = await sb.auth.getSession();
-      if (data.session) return (this.userId = data.session.user.id);
+      if (data.session) {
+        // A sign-in removed on the server (e.g. a duplicate cleaned up) stays in storage; drop it and look again,
+        // which on this address also collects an older sign-in from the previous address. Offline errors don't count.
+        const { error: gone } = await sb.auth.getUser();
+        if (gone && (gone.code === "user_not_found" || /user .*(does not exist|not found)/i.test(gone.message))) {
+          await sb.auth.signOut({ scope: "local" });
+          try { localStorage.removeItem("mh:pulled"); localStorage.removeItem("na:nights"); } catch { /* private mode */ }
+          location.reload();
+          return new Promise<string>(() => {});
+        }
+        return (this.userId = data.session.user.id);
+      }
       const { data: d, error } = await sb.auth.signInAnonymously();
       if (error) throw new Error(error.message);
       return (this.userId = d.user!.id);
