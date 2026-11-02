@@ -28,6 +28,7 @@ const TOUR: Spot[] = [
 /** Features worth knowing, for the "What can I do?" tab. `needsNight` ones only exist once you're in a night. */
 const FEATURES: (Spot & { needsNight?: boolean })[] = [
   { view: "Map", target: ".map-panel", title: "Tap a venue on the map", body: "Opens the venue with everything on there tonight. Tap a ring to zoom into venues close together." },
+  { view: "Map", target: ".rides-button", title: "See buses, boats and ferries", body: "Getting around shows the free Museumnacht buses, the uitvaartbus, the Lampedusa boat, ferries, the museum tram and bike parking. Tap a ride to add it to your route." },
   { view: "Explore", target: ".event-card .reaction-buttons", title: "React instead of just starring", body: "Must, Up for it or Skip, with an optional note in the activity details." },
   { view: "Explore", target: ".suggested-filter", title: "Filter by your friends’ picks", body: "Picks shows only what someone reacted to; choose a person to see just theirs." },
   { view: "Our night", aside: "suggested", target: "[data-tour=suggested]", title: "Start from a suggested route", body: "Four themed routes. Previewing never changes anyone’s plan." },

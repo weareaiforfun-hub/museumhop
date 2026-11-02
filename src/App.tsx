@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronRight, Clock, Compass, Map as MapIcon, MapPin, Moon, Plus, Route, Search, Share2, Sparkles, Star, Utensils, Undo2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpRight, Bus, Check, ChevronRight, Clock, Compass, Map as MapIcon, MapPin, Moon, Plus, Route, Search, Share2, Sparkles, Star, Utensils, Undo2, X } from "lucide-react";
 import { activities, byId, byMuseum, COLORS, FOOD, initials, items, minute, warnings, type Item, type UiStop } from "./lib/catalogue";
 import { addStopOps, derive, personalRouteOps, removeOps, reorderOps, replaceRouteOps, rescheduleOps, timingOps, useSync } from "./lib/night";
 import { newId, sync, type Op } from "./lib/sync";
@@ -12,6 +12,8 @@ import { RouteStop } from "./components/route-stop";
 import { Crews } from "./components/crews";
 import { BrandMark } from "./components/brand-mark";
 import { HelpButton, Onboarding, type Place } from "./components/onboarding";
+import { GettingAround, RideCard } from "./components/getting-around";
+import { MODES } from "./data/transport";
 import exampleIdeas from "./data/route-ideas.json";
 import { Decide, REACTIONS, ReactionButtons, type ReactionKey } from "./components/decide";
 
@@ -41,6 +43,13 @@ export default function App() {
   const [routeView, setRouteView] = useState<"list" | "timeline">("list"), [previewStops, setPreviewStops] = useState<UiStop[] | null>(null);
   const openedIdeas = useRef(false);
   const [pendingSuggestion, setPendingSuggestion] = useState<string | null>(null), [helpOpen, setHelpOpen] = useState(false);
+  const [ridesOpen, setRidesOpen] = useState(false), [layers, setLayers] = useState(() => new Set(MODES.filter((m) => m.on).map((m) => m.id)));
+  const [hideVenues, setHideVenues] = useState(false), [ride, setRide] = useState<{ mode: string; stop: number } | null>(null);
+  const shownModes = useMemo(() => (ridesOpen ? MODES.filter((m) => layers.has(m.id)) : []), [ridesOpen, layers]);
+  const rideMode = ride && shownModes.find((m) => m.id === ride.mode);
+  /** Desktop shows the panel in the explore column (the map stays clear); phones show it as a sheet over the map. */
+  const gettingAround = (where: string) => <GettingAround className={where} modes={MODES} layers={layers} hideVenues={hideVenues} onHideVenues={setHideVenues} onClose={() => { setRidesOpen(false); setRide(null); }}
+    onToggle={(id) => { setLayers((l) => { const n = new Set(l); if (n.has(id)) n.delete(id); else n.add(id); return n; }); if (ride?.mode === id) setRide(null); }} />;
 
   const night = useMemo(() => (data ? derive(data, userId) : null), [data, userId]);
   const identity = night?.me;
@@ -257,7 +266,8 @@ export default function App() {
     <nav className="mobile-nav" aria-label="Planner views">{([["Explore", Compass], ["Map", MapIcon], ["Our night", Route]] as const).map(([n, Icon]) => <button className={view === n ? "active" : ""} key={n} onClick={() => setView(n)}><Icon size={17} />{n}</button>)}</nav>
     {error && <div className="error-banner" role="alert">{error}<button aria-label="Dismiss error" onClick={() => setError("")}><X size={16} /></button></div>}
     <div className={"workspace mobile-" + view.replace(" ", "-").toLowerCase()}>
-      <section className="explorer" aria-label="Explore programme">
+      <section className={"explorer" + (ridesOpen ? " rides-open" : "")} aria-label="Explore programme">
+        {ridesOpen && gettingAround("in-explorer")}
         <div className="explore-controls">
           <div className="section-heading"><h2>Explore the night</h2><span className="count">{activities.length} activities</span></div>
           <div className="category-tabs">{["Activities", "Museums", "Food & drink"].map((c) => <button key={c} className={category === c ? "active" : ""} onClick={() => { setCategory(c); setTag("All types"); }}>{c === "Food & drink" && <Utensils size={13} />} {c}</button>)}</div>
@@ -284,9 +294,14 @@ export default function App() {
       </section>
 
       <section className="map-panel" aria-label="Amsterdam map">
-        <MapView visible={proposal ? proposal.route.map((s) => byId.get(s.id)!).filter(Boolean) : asideMode === "personal" && myRoute.length ? myRoute.map((s) => byId.get(s.id)!).filter(Boolean) : filtered} lines={lines} onSelect={pick} focus={focus} fit={fit} />
+        <MapView transport={{ modes: shownModes, selected: ride, onSelect: (mode, stop) => setRide({ mode, stop }) }} visible={ridesOpen && hideVenues ? [] : proposal ? proposal.route.map((s) => byId.get(s.id)!).filter(Boolean) : asideMode === "personal" && myRoute.length ? myRoute.map((s) => byId.get(s.id)!).filter(Boolean) : filtered} lines={lines} onSelect={pick} focus={focus} fit={fit} />
         <div className="map-caption"><span className="live-dot" />{previewStops ? "ROUTE PREVIEW" : proposal ? "ROUTE IDEA PREVIEW" : asideMode === "personal" && myRoute.length ? "MY PERSONAL ROUTE" : asideMode === "crews" && data?.na_crews.length ? "CREW ROUTES" : "AMSTERDAM AT NIGHT"}</div>
         {proposal && <div className="preview-banner"><span>{proposal.title}</span><button onClick={() => setPreviewId(null)} aria-label="Close route preview"><X size={15} /></button></div>}
+        <button className={"rides-button" + (ridesOpen ? " on" : "")} aria-pressed={ridesOpen} onClick={() => { setRidesOpen(!ridesOpen); setRide(null); }}><Bus size={16} />Getting around</button>
+        {ridesOpen && gettingAround("in-map")}
+        {ride && rideMode && <RideCard mode={rideMode} stop={ride.stop} onClose={() => setRide(null)} onAdd={addTo} onDetails={(id) => { const e = byId.get(id); if (e) pick(e); }}
+          added={(id) => (target === "personal" ? myRoute : target === "crew" ? crewStops : route).some((s) => s.id === id)}
+          addLabel={target === "personal" ? "My route" : target === "crew" ? "Crew" : "Route"} />}
         <button className="fit-button" onClick={() => setFit(fit + 1)}><Compass size={16} />{proposal ? "Fit preview" : asideMode === "personal" ? "Fit my route" : route.length ? "Fit our route" : "Reset map"}</button>
         <div className="map-legend"><span><i className="legend-museum" />Venue</span><span><i className="legend-food" />Food & drink</span><span><i className="legend-cluster" />Several venues</span>{asideMode === "crews" && !previewStops && data?.na_crews.length ? data.na_crews.map((c) => <span key={c.id}><i style={{ background: c.color }} />{c.name}</span>)
           : <span><i className="legend-route" />{previewStops ? "Preview" : proposal ? "Route idea" : asideMode === "personal" ? "My route" : "Our route"}</span>}</div>

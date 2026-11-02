@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { byId, byMuseum, FOOD, museumItem, type Item, type Museum, type UiStop } from "../lib/catalogue";
+import type { TransportMode } from "../data/transport";
+
+/** Transport drawn over the map: the modes switched on, and which stop is selected. */
+export type TransportLayer = { modes: TransportMode[]; selected: { mode: string; stop: number } | null; onSelect: (mode: string, stop: number) => void };
+export const stopPoint = (s: TransportMode["stops"][number]): [number, number] | null => {
+  const m = s.museumId ? byMuseum.get(s.museumId) : undefined;
+  return m?.lat != null ? [m.lat, m.lng!] : s.at ?? null;
+};
 
 /** A route drawn on the map. Stops of the `numbered` route get their order number on the pin. */
 export type MapLine = { stops: UiStop[]; color: string; numbered?: boolean; dashed?: boolean };
@@ -24,11 +32,16 @@ function loadLeaflet() {
   return leafletLoading;
 }
 
-export function MapView({ visible, lines, onSelect, focus, fit }: { visible: Item[]; lines: MapLine[]; onSelect: (e: Item) => void; focus: string | null; fit: number }) {
+export function MapView({ visible, lines, onSelect, focus, fit, transport }: { visible: Item[]; lines: MapLine[]; onSelect: (e: Item) => void; focus: string | null; fit: number; transport?: TransportLayer }) {
   /** Runs a camera move now, or, while the map is hidden (another view on a phone), once it is shown: Leaflet can't move a 0×0 map. */
   const pendingMove = useRef<(() => void) | null>(null);
-  const move = (fn: () => void) => { if (element.current?.offsetWidth) fn(); else pendingMove.current = fn; };
-  const element = useRef<HTMLDivElement>(null), map = useRef<Leaflet>(null), layer = useRef<Leaflet>(null), line = useRef<Leaflet>(null), select = useRef(onSelect);
+  const move = (fn: () => void) => {
+    if (!element.current?.offsetWidth) { pendingMove.current = fn; return; }
+    map.current?.invalidateSize({ pan: false }); // its cached size can lag a view switch
+    fn();
+  };
+  const element = useRef<HTMLDivElement>(null), map = useRef<Leaflet>(null), layer = useRef<Leaflet>(null), line = useRef<Leaflet>(null), rides = useRef<Leaflet>(null), select = useRef(onSelect), pickRide = useRef(transport?.onSelect);
+  pickRide.current = transport?.onSelect;
   select.current = onSelect;
   const [ready, setReady] = useState(false), [error, setError] = useState(""), [zoom, setZoom] = useState(13);
 
@@ -49,6 +62,7 @@ export function MapView({ visible, lines, onSelect, focus, fit }: { visible: Ite
         tiles.addTo(map.current);
         layer.current = L.layerGroup().addTo(map.current);
         line.current = L.layerGroup().addTo(map.current);
+        rides.current = L.layerGroup().addTo(map.current);
         map.current.on("zoomend", () => setZoom(map.current.getZoom()));
         resize = new ResizeObserver(() => {
           map.current?.invalidateSize();
@@ -156,6 +170,48 @@ export function MapView({ visible, lines, onSelect, focus, fit }: { visible: Ite
       if (coords.length > 1) L.polyline(coords, { color: l.color, weight: l.numbered ? 4 : 5, opacity: 0.85, dashArray: l.dashed === false ? undefined : "7 8" }).addTo(line.current);
     }
   }, [ready, visible, lines, zoom]);
+
+  /* Transport: lines between known ends, and square pins for boarding points, above the venue dots. */
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const L = (window as any).L;
+    rides.current.clearLayers();
+    for (const mode of transport?.modes ?? []) {
+      for (const [a, b] of mode.lines ?? []) {
+        const p = stopPoint(mode.stops[a]), q = stopPoint(mode.stops[b]);
+        if (p && q) L.polyline([p, q], { color: mode.color, weight: 5, opacity: 0.9, dashArray: mode.dashed ? "10 7" : undefined, interactive: false }).addTo(rides.current);
+      }
+      mode.stops.forEach((stop, i) => {
+        const at = stopPoint(stop);
+        if (!at) return;
+        const on = transport!.selected?.mode === mode.id && transport!.selected.stop === i;
+        const icon = L.divIcon({ className: "ride-pin" + (on ? " on" : ""), html: `<span style="background:${mode.color}">${mode.short}</span>`, iconSize: [28, 28], iconAnchor: [14, 14] });
+        const marker = L.marker(at, { icon, keyboard: true, title: stop.name + " · " + mode.name, zIndexOffset: on ? 3000 : 2000 }).addTo(rides.current);
+        marker.bindTooltip(stop.name, { direction: "top", offset: [0, -14] });
+        marker.on("click", () => pickRide.current?.(mode.id, i));
+      });
+    }
+  }, [ready, transport?.modes, transport?.selected]);
+
+  // Selecting a ride brings it, and the other end of its line, into view.
+  const selectedKey = transport?.selected ? transport.selected.mode + ":" + transport.selected.stop : "";
+  useEffect(() => {
+    if (!ready || !transport?.selected) return;
+    const mode = transport.modes.find((m) => m.id === transport.selected!.mode), i = transport.selected.stop;
+    if (!mode) return;
+    const ends = [i, ...(mode.lines ?? []).filter((l) => l.includes(i)).flat()].map((n) => stopPoint(mode.stops[n])).filter(Boolean);
+    if (ends.length) move(() => map.current?.fitBounds(ends, { padding: [90, 90], maxZoom: 15 }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, selectedKey]);
+
+  // Opening the transport layer frames every ride once; toggling single modes afterwards leaves the view alone.
+  const ridesShown = !!transport?.modes.length;
+  useEffect(() => {
+    if (!ready || !ridesShown) return;
+    const points = (transport?.modes ?? []).flatMap((m) => m.stops.map(stopPoint)).filter(Boolean);
+    if (points.length) move(() => map.current?.fitBounds(points, { padding: [40, 40], maxZoom: 15 }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, ridesShown]);
 
   useEffect(() => {
     if (!ready || !focus) return;
