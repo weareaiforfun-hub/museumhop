@@ -1,4 +1,4 @@
-# Builds Night Atlas and publishes it to GitHub Pages (custom domain nightatlas.arian-shafa.xyz).
+# Builds MuseumHopper and publishes it to GitHub Pages (custom domain museumhopper.arian-shafa.xyz).
 # Needs repository variables VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY (the public key, not a secret).
 name: Deploy
 

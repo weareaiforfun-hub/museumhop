@@ -63,7 +63,7 @@ export class NightSync {
 
   constructor(url: string, key: string) {
     const sb = createClient(url, key, {
-      auth: { persistSession: true, autoRefreshToken: true, storageKey: "night-atlas-auth" },
+      auth: { persistSession: true, autoRefreshToken: true, storageKey: "museumhopper-auth" },
       global: { fetch: (...args) => window.fetch(...args) }, // looked up per call, so tests can simulate going offline
     });
     this.sb = sb;

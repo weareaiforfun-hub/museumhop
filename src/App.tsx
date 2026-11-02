@@ -10,6 +10,7 @@ import { ActivityFeed, describe, SyncPill } from "./components/live";
 import { Timeline } from "./components/timeline";
 import { RouteStop } from "./components/route-stop";
 import { Crews } from "./components/crews";
+import { BrandMark } from "./components/brand-mark";
 import exampleIdeas from "./data/route-ideas.json";
 import { Decide, REACTIONS, ReactionButtons, type ReactionKey } from "./components/decide";
 
@@ -215,11 +216,11 @@ export default function App() {
     </form>
   );
 
-  if (!sync) return <main className="config-missing"><h1>Night Atlas</h1><p>The backend isn't configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.</p></main>;
+  if (!sync) return <main className="config-missing"><h1>MuseumHopper</h1><p>The backend isn't configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.</p></main>;
 
   return <main>
     <header className="topbar">
-      <a href="./" className="brand" aria-label="Night Atlas home"><span className="brand-icon"><Moon size={24} /></span><span>night<span className="brand-light">atlas</span><small>AMSTERDAM, AFTER HOURS</small></span></a>
+      <a href="./" className="brand" aria-label="MuseumHopper home"><span className="brand-icon"><BrandMark /></span><span>museum<span className="brand-light">hopper</span><small>AMSTERDAM, AFTER HOURS</small></span></a>
       <div className="event-date"><span className="live-dot" />SAT 7 NOV 2026<span className="date-divider" />19:00 — 02:00</div>
       <div className="header-actions">
         {invite && !identity && !loading && <button className="secondary join-button" onClick={() => setNameDialog(true)}>Join this night</button>}

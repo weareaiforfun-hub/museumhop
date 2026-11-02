@@ -1,4 +1,4 @@
-# Night Atlas
+# MuseumHopper
 
 A free, unofficial planner for Museumnacht Amsterdam (Sat 7 Nov 2026): all 310 activities and 69 venues on a map,
 shared and personal routes, route ideas, reactions and a Decide board, crews with meet-up points, a timeline with

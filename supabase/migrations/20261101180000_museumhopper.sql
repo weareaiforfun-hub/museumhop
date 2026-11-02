@@ -1,4 +1,4 @@
--- Night Atlas (lives in the shared to-one project, hence the na_ prefix).
+-- MuseumHopper (lives in the shared to-one project, so its tables and functions carry the na_ prefix).
 -- One "night" per friend group. Everyone signs in anonymously today; because membership is keyed on auth.uid(),
 -- upgrading an anonymous user to a real account later keeps all their data. Nights are reachable only through an
 -- invite token (stored hashed), and every table is scoped by night_id, so strangers' groups never see each other.
