@@ -87,5 +87,25 @@ const twice = await org.rpc("na_add_examples", { p_night: night, p_ideas: ideas 
 const ideaRoutes = (await pat.from("na_routes").select("title").eq("night_id", night).eq("kind", "personal")).data.map((r) => r.title);
 ok("only the organiser adds the example ideas, once", !!byPat.error && byOrg.data === 4 && !!twice.error && ideaRoutes.length === 5, ideaRoutes.join(" / "));
 
+// Personal links: another device signs in as the same member; a new link turns the old one off.
+const linkEmail = (uid) => `m-${uid}@users.museumhop.arian-shafa.xyz`;
+const outLink = await out.rpc("na_personal_link");
+ok("someone in no night can't get a personal link", !!outLink.error, outLink.error?.message);
+const { data: secret, error: le } = await pat.rpc("na_personal_link");
+ok("a member gets a personal link secret", !le && /^[0-9a-f]{64}$/.test(secret), le?.message);
+const device = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false } });
+const signedIn = await device.auth.signInWithPassword({ email: linkEmail(pat.uid), password: secret });
+const deviceSees = (await device.from("na_stops").select("id").eq("night_id", night)).data ?? [];
+const memberNight = await device.rpc("na_member_night", { p_token: token });
+ok("the link opens the same member, with their night, on a new device", signedIn.data.user?.id === pat.uid && deviceSees.length > 0 && memberNight.data === night, signedIn.error?.message);
+const strangerNight = await out.rpc("na_member_night", { p_token: token });
+ok("knowing the invite token alone doesn't reveal the night id", !strangerNight.error && strangerNight.data === null);
+const { data: secret2 } = await pat.rpc("na_personal_link");
+const oldLink = await createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false } }).auth.signInWithPassword({ email: linkEmail(pat.uid), password: secret });
+const newLink = await createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false } }).auth.signInWithPassword({ email: linkEmail(pat.uid), password: secret2 });
+ok("a new personal link turns the old one off", !!oldLink.error && newLink.data.user?.id === pat.uid, oldLink.error?.message);
+const stillIn = await pat.from("na_members").select("id").eq("night_id", night);
+ok("the original device stays signed in after a new link", !stillIn.error && stillIn.data.length > 0);
+
 console.log(failures ? `\n${failures} check(s) failed` : "\nAll checks passed");
 process.exit(failures ? 1 : 0);

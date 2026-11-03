@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpRight, Bus, Check, ChevronRight, Clock, Compass, Map as MapIcon, MapPin, Moon, Plus, Route, Search, Share2, Sparkles, Star, Utensils, Undo2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpRight, Bus, Check, KeyRound, ChevronRight, Clock, Compass, Map as MapIcon, MapPin, Moon, Plus, Route, Search, Share2, Sparkles, Star, Utensils, Undo2, X } from "lucide-react";
 import { activities, byId, byMuseum, COLORS, FOOD, initials, items, minute, warnings, type Item, type UiStop } from "./lib/catalogue";
 import { addStopOps, derive, personalRouteOps, removeOps, reorderOps, replaceRouteOps, rescheduleOps, timingOps, useSync } from "./lib/night";
 import { newId, sync, type Op } from "./lib/sync";
@@ -11,7 +11,8 @@ import { Timeline } from "./components/timeline";
 import { RouteStop } from "./components/route-stop";
 import { Crews } from "./components/crews";
 import { BrandMark } from "./components/brand-mark";
-import { HelpButton, Onboarding, type Place } from "./components/onboarding";
+import { HelpButton, introSeen, Onboarding, type HelpTab, type Place } from "./components/onboarding";
+import { KeepSpot } from "./components/keep-spot";
 import { GettingAround, RideCard } from "./components/getting-around";
 import { MODES } from "./data/transport";
 import exampleIdeas from "./data/route-ideas.json";
@@ -36,13 +37,14 @@ export default function App() {
   const [target, setTarget] = useState<"shared" | "personal" | "crew">("shared");
   const [asideMode, setAsideMode] = useState<Aside>("route"), [previewId, setPreviewId] = useState<string | null>(null);
   const [category, setCategory] = useState("Activities"), [query, setQuery] = useState(""), [tag, setTag] = useState("All types"), [view, setView] = useState("Explore"), [suggestedOnly, setSuggestedOnly] = useState(false), [personFilter, setPersonFilter] = useState("all");
-  const [invite, setInvite] = useState(""), [nightId, setNightId] = useState("");
+  const [invite, setInvite] = useState(""), [nightId, setNightId] = useState(""), [resolving, setResolving] = useState(false);
+  const [spotOpen, setSpotOpen] = useState(false), [switchLink, setSwitchLink] = useState(false), [, setLinkMade] = useState(0);
   const [name, setName] = useState(pref("na:name")), [color, setColor] = useState(pref("na:color") || COLORS[Math.floor(Math.random() * COLORS.length)]);
   const [note, setNote] = useState(""), [selected, setSelected] = useState<Item | null>(null), [focus, setFocus] = useState<string | null>(null), [fit, setFit] = useState(0);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [toast, setToast] = useState(""), [undo, setUndo] = useState<Undo | null>(null), [nameDialog, setNameDialog] = useState(false);
   const [routeView, setRouteView] = useState<"list" | "timeline">("list"), [previewStops, setPreviewStops] = useState<UiStop[] | null>(null);
   const openedIdeas = useRef(false);
-  const [pendingSuggestion, setPendingSuggestion] = useState<string | null>(null), [helpOpen, setHelpOpen] = useState(false);
+  const [pendingSuggestion, setPendingSuggestion] = useState<string | null>(null), [helpOpen, setHelpOpen] = useState(false), [helpTab, setHelpTab] = useState<HelpTab>("what");
   const [ridesOpen, setRidesOpen] = useState(false), [layers, setLayers] = useState(() => new Set(MODES.filter((m) => m.on).map((m) => m.id)));
   const [hideVenues, setHideVenues] = useState(false), [ride, setRide] = useState<{ mode: string; stop: number } | null>(null);
   const shownModes = useMemo(() => (ridesOpen ? MODES.filter((m) => layers.has(m.id)) : []), [ridesOpen, layers]);
@@ -81,6 +83,11 @@ export default function App() {
       const id = token ? known()[token] : "";
       setNightId(id || "");
       if (!id) sync?.close();
+      // A browser that knows who I am but not this night (a personal link, or a lost list) opens it without joining again.
+      if (token && !id && sync) {
+        setResolving(true);
+        sync.memberNight(token).then((found) => { if (found) { remember(token, found); setNightId(found); } }).finally(() => setResolving(false));
+      }
     };
     readLocation();
     window.addEventListener("hashchange", readLocation);
@@ -88,6 +95,16 @@ export default function App() {
   }, []);
   useEffect(() => { if (nightId && sync) sync.open(nightId, { name: pref("na:name"), color: pref("na:color") }).catch((e) => setError(e.message)); }, [nightId]);
   useEffect(() => sync?.onNotice((n) => (n.kind === "error" ? setError(n.text) : setToast(n.text))), []);
+  useEffect(() => { sync?.ready.then(() => { if (sync!.linkProblem) setError(sync!.linkProblem); if (sync!.pendingLink) setSwitchLink(true); }); }, []);
+  /* Members whose spot lives in this browser only get asked once to keep it; the banner stays until they do. */
+  const hasLink = !!identity && !!sync?.savedPersonalLink();
+  useEffect(() => {
+    if (!identity || hasLink || !introSeen()) return;
+    const asked = "na:spot-asked:" + userId;
+    if (pref(asked)) return;
+    setPref(asked, "1");
+    setSpotOpen(true);
+  }, [identity?.id, hasLink]);
   useEffect(() => { if (identity) sync?.updatePresence({ name: identity.display_name, color: identity.color }); }, [identity?.display_name, identity?.color]);
 
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(""), 4500); return () => clearTimeout(t); }, [toast]);
@@ -207,6 +224,7 @@ export default function App() {
       if (id === nightId) await sync.reload(); else setNightId(id);
       setNameDialog(false); setAsideMode("personal"); setTarget("personal"); setPreviewId(null);
       setToast(invite ? "You joined the night." : "Your night is ready. Invite your friends!");
+      setPref("na:spot-asked:" + sync.userId, "1"); setSpotOpen(true);
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
@@ -235,7 +253,7 @@ export default function App() {
   const viewToggle = <div className="view-toggle" role="group" aria-label="Route view">
     {(["list", "timeline"] as const).map((v) => <button key={v} aria-pressed={routeView === v} className={routeView === v ? "on" : ""} onClick={() => { setRouteView(v); setPreviewStops(null); }}>{v === "list" ? "List" : "Timeline"}</button>)}
   </div>;
-  const loading = !!nightId && !night?.members.length && status?.conn !== "offline";
+  const loading = (resolving || !!nightId) && !night?.members.length && status?.conn !== "offline";
 
   const joinForm = (
     <form className="join-form" onSubmit={(e) => { e.preventDefault(); enter(); }}>
@@ -258,7 +276,7 @@ export default function App() {
       <div className="header-actions">
         {invite && !identity && !loading && <button className="secondary join-button" onClick={() => setNameDialog(true)}>Join this night</button>}
         {identity && <button className="profile" onClick={() => { setName(identity.display_name); setColor(identity.color); setNameDialog(true); }}><span className="avatar" style={{ background: identity.color, color: "#fff" }}>{initials(identity.display_name)}</span><span>{identity.display_name}</span></button>}
-        <HelpButton onClick={() => setHelpOpen(true)} />
+        <HelpButton onClick={() => { setHelpTab("what"); setHelpOpen(true); }} />
         <button className="primary share-button" aria-label={invite ? "Invite friends" : "Plan with friends"} onClick={share}><Share2 size={16} /><span>{invite ? "Invite friends" : "Plan with friends"}</span></button>
       </div>
     </header>
@@ -290,7 +308,7 @@ export default function App() {
             </article>;
           })}
         </div>
-        <footer className="data-note">Programme snapshot · 1 Nov 2026<br />Check the official listing for updates and availability.<br />Unofficial fan planner · not affiliated with Museumnacht Amsterdam / N8.</footer>
+        <footer className="data-note">Programme snapshot · 1 Nov 2026<br />Check the official listing for updates and availability.<br />Unofficial fan planner · not affiliated with Museumnacht Amsterdam / N8. · <button className="footer-link" onClick={() => { setHelpTab("data"); setHelpOpen(true); }}>Your data</button></footer>
       </section>
 
       <section className="map-panel" aria-label="Amsterdam map">
@@ -323,6 +341,7 @@ export default function App() {
           <button className={asideMode !== "suggested" ? "active" : ""} onClick={() => { setAsideMode("route"); setPreviewId(null); }}>{invite ? "Join" : "Start"}</button>
           <button data-tour="suggested" className={asideMode === "suggested" ? "active" : ""} onClick={() => { setAsideMode("suggested"); setPreviewId(null); }}>Suggested routes <span>{SUGGESTED.length}</span></button>
         </nav>}
+        {identity && !hasLink && <button className="spot-banner" onClick={() => setSpotOpen(true)}><KeyRound size={15} /><span>Only saved in this browser</span><b>Keep your spot</b></button>}
         {loading ? <div className="start-plan"><div className="illustration"><Moon size={38} /></div><h3>Loading your night…</h3></div>
         : asideMode === "personal" && identity && routeView === "timeline" && myRoute.length ? <section className="personal-route"><h3>My route</h3>{viewToggle}
             <Timeline stops={myRoute} title={night?.mine?.title || "My route"} onPick={pick} onPropose={proposeMine} onPreview={(p) => { setPreviewStops(p); if (p) setFit((f) => f + 1); }}
@@ -395,14 +414,23 @@ export default function App() {
       {suggesters(selected.id).length > 0 && <div className="detail-suggestions">{suggesters(selected.id).map((s) => <p key={s.member_id}><b>{nameOf(s.member_id)}</b> · {REACTIONS.find((x) => x.key === s.reaction)!.label}{s.note ? ": " + s.note : ""}</p>)}</div>}
       {selected.id.startsWith("museum:") && <div className="museum-activities"><h3>What’s on here</h3>{activities.filter((e) => e.museumId === selected.museumId).map((e) => <button key={e.id} onClick={() => pick(e)}><span>{e.title}<small>{e.time} · {e.tags.join(" · ")}</small></span><ChevronRight size={16} /></button>)}</div>}
     </section></div>}
-    <Onboarding inNight={!!identity} helpOpen={helpOpen} setHelpOpen={setHelpOpen} show={(p: Place) => {
+    <Onboarding inNight={!!identity} helpOpen={helpOpen} setHelpOpen={setHelpOpen} helpTab={helpTab} show={(p: Place) => {
       setSelected(null); setPreviewId(null);
       if (p.view) setView(p.view);
       if (p.aside && (identity || p.aside === "route" || p.aside === "suggested")) setAsideMode(p.aside);
     }} />
+    {spotOpen && identity && sync && <KeepSpot name={identity.display_name} nightName={night?.night?.name ?? "this night"} saved={sync.savedPersonalLink()}
+      onCreate={async () => { const link = await sync!.newPersonalLink(invite); setLinkMade((n) => n + 1); return link; }} onClose={() => setSpotOpen(false)} />}
+    {switchLink && sync?.pendingLink && <div className="modal-backdrop"><section className="name-modal" role="dialog" aria-modal="true" aria-label="Open this personal link?">
+      <KeyRound size={30} /><h2>Open this personal link?</h2>
+      <p>This browser is already someone in a night. The link switches it to the person the link belongs to, with their nights. This browser’s current spot stays safe only if that person has a personal link of their own.</p>
+      <button className="primary" onClick={async () => { try { await sync!.useLink(sync!.pendingLink!); location.reload(); } catch (e) { setSwitchLink(false); setError((e as Error).message); } }}>Switch to the link’s person<ArrowUpRight size={16} /></button>
+      <button className="text-button" onClick={() => { sync!.pendingLink = null; setSwitchLink(false); }}>Stay as I am</button>
+    </section></div>}
     {nameDialog && <div className="modal-backdrop" onClick={() => setNameDialog(false)}><section className="name-modal" role="dialog" aria-modal="true" aria-label={identity ? "Your name" : "Join the night"} onClick={(e) => e.stopPropagation()}>
       <button className="modal-close" aria-label="Close" onClick={() => setNameDialog(false)}><X size={20} /></button><Moon size={32} />
       <h2>{identity ? "Your name" : invite ? "Join your friends" : "Start your shared night"}</h2>
+      {identity && <button className="text-button spot-link-button" onClick={() => { setNameDialog(false); setSpotOpen(true); }}><KeyRound size={13} />Your personal link: keep your spot on any device</button>}
       <p>{identity ? "This is how your name appears to the group." : "A name, an invite link, and a whole city to explore."}</p>
       {error && <p className="dialog-error" role="alert">{error}</p>}{joinForm}
     </section></div>}

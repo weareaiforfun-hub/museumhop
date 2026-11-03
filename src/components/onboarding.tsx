@@ -85,10 +85,13 @@ function Spotlight({ spot, step, total, onBack, onNext, onClose }: { spot: Spot;
 }
 
 /** First-visit intro, the spotlight tour and the help drawer. `show` moves the app to the place a step needs. */
-export function Onboarding({ show, inNight, helpOpen, setHelpOpen }: { show: (p: Place) => void; inNight: boolean; helpOpen: boolean; setHelpOpen: (v: boolean) => void }) {
+export type HelpTab = "what" | "do" | "data";
+
+export function Onboarding({ show, inNight, helpOpen, setHelpOpen, helpTab }: { show: (p: Place) => void; inNight: boolean; helpOpen: boolean; setHelpOpen: (v: boolean) => void; helpTab?: HelpTab }) {
   const [slide, setSlide] = useState<number | null>(introSeen() ? null : 0);
   const [hint, setHint] = useState(false), [tour, setTour] = useState<number | null>(null), [single, setSingle] = useState<Spot | null>(null);
-  const [tab, setTab] = useState<"what" | "do">("what");
+  const [tab, setTab] = useState<HelpTab>("what");
+  useEffect(() => { if (helpOpen && helpTab) setTab(helpTab); }, [helpOpen, helpTab]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -131,8 +134,9 @@ export function Onboarding({ show, inNight, helpOpen, setHelpOpen }: { show: (p:
         <div className="help-tabs" role="tablist">
           <button role="tab" aria-selected={tab === "what"} className={tab === "what" ? "on" : ""} onClick={() => setTab("what")}>What is this?</button>
           <button role="tab" aria-selected={tab === "do"} className={tab === "do" ? "on" : ""} onClick={() => setTab("do")}>What can I do?</button>
+          <button role="tab" aria-selected={tab === "data"} className={tab === "data" ? "on" : ""} onClick={() => setTab("data")}>Your data</button>
         </div>
-        {tab === "what" ? <div role="tabpanel" className="help-panel">
+        {tab === "data" ? <YourData /> : tab === "what" ? <div role="tabpanel" className="help-panel">
           <span className="eyebrow">Start here</span>
           <h2>Plan Museumnacht with your friends, on one shared map.</h2>
           <p>MuseumHop lists all 310 activities of Museumnacht Amsterdam 2026 (Saturday 7 November, 19:00–02:00). Pick what you like, build a route together, and see how long the walks between stops take.</p>
@@ -161,6 +165,48 @@ export function Onboarding({ show, inNight, helpOpen, setHelpOpen }: { show: (p:
       </aside>
     </div>}
   </>;
+}
+
+/** Plain-language privacy page. Every line here must stay true: change it when the app's data handling changes. */
+function YourData() {
+  return <div role="tabpanel" className="help-panel your-data">
+    <span className="eyebrow">Your data</span>
+    <h2>Your night is only visible to the people in it.</h2>
+    <section>
+      <h3>What MuseumHop keeps</h3>
+      <ul>
+        <li>The name and colour you pick</li>
+        <li>Your reactions, notes, routes, votes, crews and meet-up points</li>
+        <li>A list of changes in your night, so your group sees who changed what</li>
+      </ul>
+      <p><b>Not kept:</b> your email, phone number, contacts or location. No ads, no analytics, no tracking cookies.</p>
+      <p><b>In this browser:</b> who you are, your nights and changes waiting to sync. Clearing your browser removes them, which is why a personal link helps.</p>
+    </section>
+    <section>
+      <h3>How long</h3>
+      <p>Each night, with everything in it, is deleted automatically 30 days after its date. For Museumnacht 2026 that happens on 8 December 2026.</p>
+    </section>
+    <section>
+      <h3>Who sees what</h3>
+      <p><b className="ok">Your group</b>, everyone who joined with your night’s invite link, sees names, reactions, notes, routes and the list of changes.</p>
+      <p><b className="ok">Only you</b> have your personal link.</p>
+      <p><b className="no">Other groups</b> can’t list, search or open your night. There is no public list of nights; the only way in is the invite link. Anyone you forward that link to can join and edit, so share it with your group only.</p>
+    </section>
+    <section>
+      <h3>How it’s enforced</h3>
+      <ul>
+        <li>Database rules check that you’re in a night on every read and every change.</li>
+        <li>Invite links are stored only as a fingerprint (hash), and personal links only as a one-way password hash, so a copy of the database doesn’t reveal working links.</li>
+        <li>A new personal link turns your old one off.</li>
+        <li>24 automated checks try to break these rules (for example “someone outside the night sees nothing”) whenever they change.</li>
+      </ul>
+    </section>
+    <section>
+      <h3>Services involved</h3>
+      <p>GitHub Pages hosts the site, Supabase stores the plans, Google Fonts serves the fonts, unpkg serves the map code and PDOK (the Dutch government’s map service) serves the map. Like any website, they see your IP address when your browser loads from them.</p>
+    </section>
+    <p className="help-note">MuseumHop is an unofficial fan planner, not affiliated with Museumnacht Amsterdam / N8.</p>
+  </div>;
 }
 
 export function HelpButton({ onClick }: { onClick: () => void }) {

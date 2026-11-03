@@ -46,6 +46,19 @@ export function friendly(message: string) {
   return message;
 }
 
+/** `#me=<uid>.<secret>` from a personal link. Removed from the address at once, so it doesn't linger in history or screenshots. */
+export type PersonalLink = { uid: string; secret: string };
+const linkEmail = (uid: string) => `m-${uid}@users.museumhop.arian-shafa.xyz`;
+function takeLink(): PersonalLink | null {
+  const params = new URLSearchParams(location.hash.slice(1));
+  const me = params.get("me");
+  if (!me) return null;
+  params.delete("me");
+  history.replaceState(null, "", location.pathname + location.search + (params.toString() ? "#" + params : ""));
+  const [uid, secret] = me.split(".");
+  return /^[0-9a-f-]{36}$/.test(uid ?? "") && /^[0-9a-f]{64}$/.test(secret ?? "") ? { uid, secret } : null;
+}
+
 export class NightSync {
   readonly sb: SupabaseClient;
   readonly ready: Promise<string>;
@@ -61,6 +74,9 @@ export class NightSync {
   private listeners = new Set<() => void>();
   private noticeListeners = new Set<(n: Notice) => void>();
   private me = { name: "", color: "" };
+  /** A personal link opened in a browser that is already someone else in a night: waits for the person to confirm. */
+  pendingLink: PersonalLink | null = null;
+  linkProblem = "";
 
   constructor(url: string, key: string) {
     const sb = createClient(url, key, {
@@ -69,6 +85,7 @@ export class NightSync {
     });
     this.sb = sb;
     this.ready = (async () => {
+      const link = takeLink();
       const { data } = await sb.auth.getSession();
       if (data.session) {
         // A sign-in removed on the server (e.g. a duplicate cleaned up) stays in storage; drop it and look again,
@@ -80,8 +97,15 @@ export class NightSync {
           location.reload();
           return new Promise<string>(() => {});
         }
-        return (this.userId = data.session.user.id);
+        this.userId = data.session.user.id;
+        if (link && link.uid !== this.userId) {
+          const { count } = await sb.from("na_members").select("id", { count: "exact", head: true }).eq("user_id", this.userId);
+          if (count) this.pendingLink = link; // don't silently replace who this browser is
+          else await this.useLink(link).catch((e) => (this.linkProblem = e.message));
+        }
+        return this.userId;
       }
+      if (link) { try { return await this.useLink(link); } catch (e) { this.linkProblem = (e as Error).message; } }
       const { data: d, error } = await sb.auth.signInAnonymously();
       if (error) throw new Error(error.message);
       return (this.userId = d.user!.id);
@@ -97,6 +121,36 @@ export class NightSync {
   private emit() { this.data = { ...this.data }; this.listeners.forEach((f) => f()); }
   private notice(n: Notice) { this.noticeListeners.forEach((f) => f(n)); }
   private setConn(conn: Status["conn"]) { this.status = { ...this.status, conn, pending: this.queue.length }; this.emit(); }
+
+  /* ---------- personal links ---------- */
+  /** Signs this browser in as the person a personal link belongs to. */
+  async useLink(link: PersonalLink) {
+    const { data, error } = await this.sb.auth.signInWithPassword({ email: linkEmail(link.uid), password: link.secret });
+    if (error || !data.user) throw new Error("This personal link doesn’t work anymore: a newer one replaced it. Open your newest link, or ask the organiser to invite you again.");
+    this.userId = data.user.id;
+    const token = new URLSearchParams(location.hash.slice(1)).get("night");
+    try {
+      localStorage.removeItem("na:nights"); // belonged to whoever this browser was before
+      if (token) localStorage.setItem("na:me:" + this.userId, `${location.origin}${location.pathname}#night=${token}&me=${link.uid}.${link.secret}`);
+    } catch { /* private mode */ }
+    return this.userId;
+  }
+  /** Makes a new personal link for me in the night of this invite token; any earlier link stops working. */
+  async newPersonalLink(token: string) {
+    await this.ready;
+    const { data, error } = await this.sb.rpc("na_personal_link");
+    if (error) throw new Error(friendly(error.message));
+    const link = `${location.origin}${location.pathname}#night=${token}&me=${this.userId}.${data}`;
+    try { localStorage.setItem("na:me:" + this.userId, link); } catch { /* shown once; can't be shown again later */ }
+    return link;
+  }
+  savedPersonalLink() { try { return localStorage.getItem("na:me:" + this.userId) ?? ""; } catch { return ""; } }
+  /** The night an invite token opens, if I'm already in it (e.g. on a device a personal link signed in). */
+  async memberNight(token: string) {
+    await this.ready;
+    const { data } = await this.sb.rpc("na_member_night", { p_token: token });
+    return (data as string | null) ?? "";
+  }
 
   /* ---------- joining ---------- */
   async createNight(name: string, displayName: string, color: string) {
