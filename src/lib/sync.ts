@@ -144,6 +144,25 @@ export class NightSync {
     try { localStorage.setItem("na:me:" + this.userId, link); } catch { /* shown once; can't be shown again later */ }
     return link;
   }
+  /* Email (museumhop-email Edge Function): offered only once it reports it can send. */
+  private async email(body: Record<string, unknown>) {
+    const { data, error } = await this.sb.functions.invoke("museumhop-email", { body });
+    if (error) {
+      const detail = await (error as { context?: Response }).context?.json?.().catch(() => null);
+      throw new Error(detail?.error ?? "Email isn’t available right now.");
+    }
+    return data as { ok?: boolean; email?: boolean; link?: string };
+  }
+  async emailReady() { try { return !!(await this.email({ action: "status" })).email; } catch { return false; } }
+  /** Emails me my personal link for the night of this invite token, making one first if this device has none. */
+  async emailMyLink(address: string, token: string) {
+    await this.ready;
+    const out = await this.email({ action: "send", email: address, token, link: this.savedPersonalLink() });
+    if (out.link) try { localStorage.setItem("na:me:" + this.userId, out.link); } catch { /* shown once */ }
+    return out.link ?? "";
+  }
+  /** Asks for new personal links to be emailed to an address on file. Always answers the same way. */
+  async recoverByEmail(address: string) { await this.email({ action: "recover", email: address }); }
   savedPersonalLink() { try { return localStorage.getItem("na:me:" + this.userId) ?? ""; } catch { return ""; } }
   /** The night an invite token opens, if I'm already in it (e.g. on a device a personal link signed in). */
   async memberNight(token: string) {

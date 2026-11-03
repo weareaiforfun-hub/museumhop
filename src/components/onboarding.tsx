@@ -179,7 +179,8 @@ function YourData() {
         <li>Your reactions, notes, routes, votes, crews and meet-up points</li>
         <li>A list of changes in your night, so your group sees who changed what</li>
       </ul>
-      <p><b>Not kept:</b> your email, phone number, contacts or location. No ads, no analytics, no tracking cookies.</p>
+      <p><b>Not kept:</b> your phone number, contacts or location. No ads, no analytics, no tracking cookies.</p>
+      <p><b>Your email</b>, only if you ask us to email your personal link: MuseumHop keeps a fingerprint of the address (to recognise it when you ask for a new link), never the address itself. Your group never sees it.</p>
       <p><b>In this browser:</b> who you are, your nights and changes waiting to sync. Clearing your browser removes them, which is why a personal link helps.</p>
     </section>
     <section>
@@ -189,7 +190,7 @@ function YourData() {
     <section>
       <h3>Who sees what</h3>
       <p><b className="ok">Your group</b>, everyone who joined with your night’s invite link, sees names, reactions, notes, routes and the list of changes.</p>
-      <p><b className="ok">Only you</b> have your personal link.</p>
+      <p><b className="ok">Only you</b> have your personal link and know which email it goes to.</p>
       <p><b className="no">Other groups</b> can’t list, search or open your night. There is no public list of nights; the only way in is the invite link. Anyone you forward that link to can join and edit, so share it with your group only.</p>
     </section>
     <section>
@@ -198,12 +199,13 @@ function YourData() {
         <li>Database rules check that you’re in a night on every read and every change.</li>
         <li>Invite links are stored only as a fingerprint (hash), and personal links only as a one-way password hash, so a copy of the database doesn’t reveal working links.</li>
         <li>A new personal link turns your old one off.</li>
+        <li>Link emails are rate-limited, and asking for a new link by email always gives the same answer, so nobody can use it to find out whether an address is registered.</li>
         <li>24 automated checks try to break these rules (for example “someone outside the night sees nothing”) whenever they change.</li>
       </ul>
     </section>
     <section>
       <h3>Services involved</h3>
-      <p>GitHub Pages hosts the site, Supabase stores the plans, Google Fonts serves the fonts, unpkg serves the map code and PDOK (the Dutch government’s map service) serves the map. Like any website, they see your IP address when your browser loads from them.</p>
+      <p>GitHub Pages hosts the site, Supabase stores the plans, Google Fonts serves the fonts, unpkg serves the map code and PDOK (the Dutch government’s map service) serves the map. Like any website, they see your IP address when your browser loads from them. If you ask for your link by email, Resend sends it and keeps a delivery log with your address.</p>
     </section>
     <p className="help-note">MuseumHop is an unofficial fan planner, not affiliated with Museumnacht Amsterdam / N8.</p>
   </div>;

@@ -12,7 +12,7 @@ import { RouteStop } from "./components/route-stop";
 import { Crews } from "./components/crews";
 import { BrandMark } from "./components/brand-mark";
 import { HelpButton, introSeen, Onboarding, type HelpTab, type Place } from "./components/onboarding";
-import { KeepSpot } from "./components/keep-spot";
+import { KeepSpot, RecoverByEmail } from "./components/keep-spot";
 import { GettingAround, RideCard } from "./components/getting-around";
 import { MODES } from "./data/transport";
 import exampleIdeas from "./data/route-ideas.json";
@@ -39,6 +39,8 @@ export default function App() {
   const [category, setCategory] = useState("Activities"), [query, setQuery] = useState(""), [tag, setTag] = useState("All types"), [view, setView] = useState("Explore"), [suggestedOnly, setSuggestedOnly] = useState(false), [personFilter, setPersonFilter] = useState("all");
   const [invite, setInvite] = useState(""), [nightId, setNightId] = useState(""), [resolving, setResolving] = useState(false);
   const [spotOpen, setSpotOpen] = useState(false), [switchLink, setSwitchLink] = useState(false), [, setLinkMade] = useState(0);
+  const [emailReady, setEmailReady] = useState(false), [recoverOpen, setRecoverOpen] = useState(false);
+  useEffect(() => { sync?.emailReady().then(setEmailReady); }, []);
   const [name, setName] = useState(pref("na:name")), [color, setColor] = useState(pref("na:color") || COLORS[Math.floor(Math.random() * COLORS.length)]);
   const [note, setNote] = useState(""), [selected, setSelected] = useState<Item | null>(null), [focus, setFocus] = useState<string | null>(null), [fit, setFit] = useState(0);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [toast, setToast] = useState(""), [undo, setUndo] = useState<Undo | null>(null), [nameDialog, setNameDialog] = useState(false);
@@ -363,7 +365,7 @@ export default function App() {
         : asideMode === "crews" && data && night ? <Crews data={data} night={night} userId={userId} canWrite={canEditShared} shared={route} run={run} onPick={pick}
             onChooseStops={() => { setTarget("crew"); setView("Explore"); }} onPreview={(p) => { setPreviewStops(p); if (p) setFit((f) => f + 1); }} onPropose={proposeMine} routeView={routeView} toggle={viewToggle} />
         : asideMode === "activity" && data && night ? <section className="activity-panel"><div className="group-strip"><div><strong>What changed</strong><SyncPill status={status} /></div></div><ActivityFeed data={data} night={night} /></section>
-        : !identity ? <div className="start-plan"><div className="illustration"><Moon size={38} /><Sparkles size={20} /></div><h3>{invite ? "Your friends are planning a night." : "Good nights start with good company."}</h3><p>{invite ? "Add your name to join in." : "Create your group, then send the invite link to your friends."}</p>{!nameDialog && joinForm}<button className="text-button suggested-teaser" onClick={() => setAsideMode("suggested")}>Or start from one of {SUGGESTED.length} suggested routes<ChevronRight size={15} /></button></div>
+        : !identity ? <div className="start-plan"><div className="illustration"><Moon size={38} /><Sparkles size={20} /></div><h3>{invite ? "Your friends are planning a night." : "Good nights start with good company."}</h3><p>{invite ? "Add your name to join in." : "Create your group, then send the invite link to your friends."}</p>{!nameDialog && joinForm}<button className="text-button suggested-teaser" onClick={() => setAsideMode("suggested")}>Or start from one of {SUGGESTED.length} suggested routes<ChevronRight size={15} /></button>{emailReady && <button className="text-button suggested-teaser" onClick={() => setRecoverOpen(true)}>Already in a night on another device? Get your link by email<ChevronRight size={15} /></button>}</div>
         : <>
           <div className="group-strip">
             <div className="avatar-stack">{realMembers.slice(0, 5).map((m) => <span className="avatar" title={m.display_name} key={m.id} style={{ background: m.color, color: "#fff" }}>{initials(m.display_name)}</span>)}</div>
@@ -420,7 +422,9 @@ export default function App() {
       if (p.aside && (identity || p.aside === "route" || p.aside === "suggested")) setAsideMode(p.aside);
     }} />
     {spotOpen && identity && sync && <KeepSpot name={identity.display_name} nightName={night?.night?.name ?? "this night"} saved={sync.savedPersonalLink()}
-      onCreate={async () => { const link = await sync!.newPersonalLink(invite); setLinkMade((n) => n + 1); return link; }} onClose={() => setSpotOpen(false)} />}
+      onCreate={async () => { const link = await sync!.newPersonalLink(invite); setLinkMade((n) => n + 1); return link; }} onClose={() => setSpotOpen(false)}
+      emailReady={emailReady} onEmail={async (address) => { const made = await sync!.emailMyLink(address, invite); setLinkMade((n) => n + 1); return made; }} />}
+    {recoverOpen && sync && <RecoverByEmail onSend={(address) => sync!.recoverByEmail(address)} onClose={() => setRecoverOpen(false)} />}
     {switchLink && sync?.pendingLink && <div className="modal-backdrop"><section className="name-modal" role="dialog" aria-modal="true" aria-label="Open this personal link?">
       <KeyRound size={30} /><h2>Open this personal link?</h2>
       <p>This browser is already someone in a night. The link switches it to the person the link belongs to, with their nights. This browser’s current spot stays safe only if that person has a personal link of their own.</p>
