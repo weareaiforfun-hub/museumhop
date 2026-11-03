@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpRight, Bus, Check, KeyRound, ChevronRight, Clock, Compass, Mail, Map as MapIcon, MapPin, Moon, Plus, Route, Search, Share2, Sparkles, Star, Utensils, Undo2, X } from "lucide-react";
+import { ArrowUpRight, Bus, Check, KeyRound, ChevronRight, Clock, Compass, Mail, Map as MapIcon, MapPin, Moon, Plus, Route, Search, Share2, Sparkles, Star, Utensils, Undo2, X } from "lucide-react";
 import { activities, byId, byMuseum, COLORS, FOOD, initials, items, minute, warnings, type Item, type UiStop } from "./lib/catalogue";
-import { addStopOps, derive, personalRouteOps, removeOps, reorderOps, replaceRouteOps, rescheduleOps, timingOps, useSync } from "./lib/night";
+import { addStopOps, derive, personalRouteOps, replaceRouteOps, rescheduleOps, useSync } from "./lib/night";
 import { newId, sync, type Op } from "./lib/sync";
 import { MapView, type MapLine } from "./components/map-view";
 import { PersonalRoute } from "./components/personal-route";
 import { RouteIdeas, type Proposal } from "./components/route-ideas";
 import { ActivityFeed, describe, SyncPill } from "./components/live";
 import { Timeline } from "./components/timeline";
-import { RouteStop } from "./components/route-stop";
+import { RouteList } from "./components/route-stop";
+import { ShareDialog } from "./components/share-dialog";
 import { Crews } from "./components/crews";
 import { BrandMark } from "./components/brand-mark";
 import { CONTACT, HelpButton, MAKER, introSeen, Onboarding, type HelpTab, type Place } from "./components/onboarding";
@@ -40,7 +41,7 @@ export default function App() {
   const [category, setCategory] = useState("Activities"), [query, setQuery] = useState(""), [tag, setTag] = useState("All types"), [view, setView] = useState("Explore"), [suggestedOnly, setSuggestedOnly] = useState(false), [personFilter, setPersonFilter] = useState("all");
   const [invite, setInvite] = useState(""), [nightId, setNightId] = useState(""), [resolving, setResolving] = useState(false);
   const [spotOpen, setSpotOpen] = useState(false), [switchLink, setSwitchLink] = useState(false), [, setLinkMade] = useState(0);
-  const [emailReady, setEmailReady] = useState(false), [recoverOpen, setRecoverOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false), [emailReady, setEmailReady] = useState(false), [recoverOpen, setRecoverOpen] = useState(false);
   useEffect(() => { sync?.emailReady().then(setEmailReady); }, []);
   const [name, setName] = useState(pref("na:name")), [color, setColor] = useState(pref("na:color") || COLORS[Math.floor(Math.random() * COLORS.length)]);
   const [note, setNote] = useState(""), [selected, setSelected] = useState<Item | null>(null), [focus, setFocus] = useState<string | null>(null), [fit, setFit] = useState(0);
@@ -257,6 +258,7 @@ export default function App() {
   }
   async function share() {
     if (!invite) { setNameDialog(true); return; }
+    if (identity) { setShareOpen(true); return; }
     try { await navigator.clipboard.writeText(location.origin + location.pathname + "#night=" + invite); setToast("Invite link copied. Anyone with it can join and edit."); track("invite-copy"); }
     catch { setToast("Copy the invitation from your browser address bar."); }
   }
@@ -299,15 +301,15 @@ export default function App() {
   return <main>
     <header className="topbar">
       <a href="./" className="brand" aria-label="MuseumHop home"><span className="brand-icon"><BrandMark /></span><span>museum<span className="brand-light">hop</span><small>AMSTERDAM, AFTER HOURS</small></span></a>
-      <div className="event-date"><span className="live-dot" />SAT 7 NOV 2026<span className="date-divider" />19:00 — 02:00</div>
+      <div className="event-date"><span className="live-dot" />SAT 7 NOV 2026<span className="date-divider" />19:00 — 02:00<span className="tagline">Find your favourites. Bring your people.</span></div>
       <div className="header-actions">
         {invite && !identity && !loading && <button className="secondary join-button" onClick={() => setNameDialog(true)}>Join this night</button>}
         {identity && <button className="profile" data-track="Your name" onClick={() => { setName(identity.display_name); setColor(identity.color); setNameDialog(true); }}><span className="avatar" style={{ background: identity.color, color: "#fff" }}>{initials(identity.display_name)}</span><span>{identity.display_name}</span></button>}
+        <a href="https://museumnacht.amsterdam/programma" target="_blank" rel="noreferrer" className="source-link">Official programme<ArrowUpRight size={14} /></a>
         <HelpButton onClick={() => { setHelpTab("what"); setHelpOpen(true); }} />
         <button className="primary share-button" aria-label={invite ? "Invite friends" : "Plan with friends"} onClick={share}><Share2 size={16} /><span>{invite ? "Invite friends" : "Plan with friends"}</span></button>
       </div>
     </header>
-    <div className="intro"><div><span className="eyebrow">ONE NIGHT. A CITY OF POSSIBILITIES.</span><h1>Make a night of it<span>.</span></h1><p>Find your favourites. Bring your people. Follow your curiosity.</p></div><a href="https://museumnacht.amsterdam/programma" target="_blank" rel="noreferrer" className="source-link">Official programme<ArrowUpRight size={16} /></a></div>
     <nav className="mobile-nav" aria-label="Planner views">{([["Explore", Compass], ["Map", MapIcon], ["Our night", Route]] as const).map(([n, Icon]) => <button className={view === n ? "active" : ""} key={n} onClick={() => setView(n)}><Icon size={17} />{n}</button>)}</nav>
     {error && <div className="error-banner" role="alert">{error}<button aria-label="Dismiss error" onClick={() => setError("")}><X size={16} /></button></div>}
     <div className={"workspace mobile-" + view.replace(" ", "-").toLowerCase()}>
@@ -378,9 +380,7 @@ export default function App() {
               onReschedule={(next, label) => run(rescheduleOps(myRoute, next), label)} /></section>
         : asideMode === "personal" && identity ? <PersonalRoute title={night?.mine?.title} name={identity.display_name} route={myRoute} events={byId} shared={route}
             onRename={(t) => run(night!.mine ? [{ t: "update", table: "na_routes", id: night!.mine.id, patch: { title: t } }] : personalRouteOps(identity.night_id, userId, undefined, t, []).ops)}
-            onMove={(i, to) => run(reorderOps(myRoute, i, to))}
-            onRemove={(s) => run(removeOps(s), `Removed ${title(s.id)} from your route`)}
-            onTiming={(s, a, d) => run(timingOps(s, a, d))}
+            run={run} onPick={pick}
             onCopyShared={() => run(personalRouteOps(identity.night_id, userId, night!.mine, identity.display_name + "’s route", route, myRoute).ops)}
             onExplore={() => { setTarget("personal"); setView("Explore"); }}
             onPreview={() => { setAsideMode("ideas"); setPreviewId(night!.mine?.id || null); setFit((f) => f + 1); setView("Map"); }} toggle={viewToggle} />
@@ -401,15 +401,15 @@ export default function App() {
             <button aria-label="Copy invite link" onClick={share}><Plus size={17} /></button>
           </div>
           <div className="route-content">{route.length === 0
-            ? <div className="empty-route"><Route size={30} /><h3>Where will the night take you?</h3><p>Tap <b>+ Route</b> on any place or activity to add your first stop. React to activities so your friends see what you’d like.</p><button className="text-button" onClick={() => setView("Explore")}>Explore the programme<ChevronRight size={15} /></button></div>
+            ? <div className="empty-route"><Route size={30} /><h3>Where will the night take you?</h3><p>Tap <b>+ Our route</b> on any place or activity to add your first stop. React to activities so your friends see what you’d like.</p><button className="text-button" onClick={() => setView("Explore")}>Explore the programme<ChevronRight size={15} /></button></div>
             : <>
               <div className="route-summary"><span>{uniqueVenues} {uniqueVenues === 1 ? "venue" : "venues"} · {route.length} stops</span><button onClick={() => { setFit(fit + 1); setView("Map"); }}>Show on map<ArrowUpRight size={13} /></button></div>
               {viewToggle}
               {routeView === "timeline"
                 ? <Timeline stops={route} title="Our route" onPick={pick} onPropose={proposeMine} onPreview={(p) => { setPreviewStops(p); if (p) setFit((f) => f + 1); }}
                     onReschedule={(next, label) => run(rescheduleOps(route, next), label)} />
-                : route.map((s, index) => <RouteStop key={s.rowId} s={s} index={index} route={route} onPick={pick} run={run} routeName="our route" />)}
-              <div className="route-disclaimer">The dashed line connects stops in order. Use directions for streets, crossings, and ferries. Travel and queue time are not included.</div>
+                : <RouteList stops={route} onPick={pick} run={run} routeName="our route" />}
+              <div className="route-disclaimer">The dashed line connects stops in order; dotted grey lines lead to maybe stops. Drag a stop’s handle to reorder. Use directions for streets, crossings, and ferries. Travel and queue time are not included.</div>
               {lastSharedChange && data && night && <p className="last-editor">Last change: {describe(lastSharedChange, data, night)}</p>}
             </>}
           </div>
@@ -453,6 +453,7 @@ export default function App() {
       onCreate={async () => { const link = await sync!.newPersonalLink(invite); setLinkMade((n) => n + 1); return link; }} onClose={() => setSpotOpen(false)}
       emailReady={emailReady} onEmail={async (address) => { const made = await sync!.emailMyLink(address, invite); setLinkMade((n) => n + 1); return made; }} />}
     {recoverOpen && sync && <RecoverByEmail onSend={(address) => sync!.recoverByEmail(address)} onClose={() => setRecoverOpen(false)} />}
+    {shareOpen && identity && invite && <ShareDialog invite={invite} nightId={identity.night_id} canPlan={identity.role !== "viewer"} onClose={() => setShareOpen(false)} />}
     {switchLink && sync?.pendingLink && <div className="modal-backdrop"><section className="name-modal" role="dialog" aria-modal="true" aria-label="Open this personal link?">
       <KeyRound size={30} /><h2>Open this personal link?</h2>
       <p>This browser is already someone in a night. The link switches it to the person the link belongs to, with their nights. This browser’s current spot stays safe only if that person has a personal link of their own.</p>

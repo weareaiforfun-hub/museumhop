@@ -4,7 +4,7 @@ import { byId, COLORS, initials, minute, type Item, type UiStop } from "../lib/c
 import { replaceRouteOps, type Derived } from "../lib/night";
 import { meetupIdeas } from "../lib/plan";
 import { newId, type Crew, type Data, type Op } from "../lib/sync";
-import { RouteStop } from "./route-stop";
+import { RouteList } from "./route-stop";
 import { Timeline } from "./timeline";
 
 type Props = {
@@ -117,7 +117,7 @@ export function Crews({ data, night, userId, canWrite, shared, run, onPick, onCh
             {toggle}
             {routeView === "timeline"
               ? <Timeline stops={myStops} title={myCrew.name} onPick={onPick} onPropose={onPropose} onPreview={onPreview} onReschedule={(next, label) => run(replaceRouteOps(myRoute, myStops, next), label)} />
-              : myStops.map((s, i) => <RouteStop key={s.rowId} s={s} index={i} route={myStops} onPick={onPick} run={run} routeName={myCrew.name + "’s route"} />)}
+              : <RouteList stops={myStops} onPick={onPick} run={run} routeName={myCrew.name + "’s route"} />}
           </>}
         </div>
       )}

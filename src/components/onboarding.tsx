@@ -42,6 +42,9 @@ const FEATURES: (Spot & { needsNight?: boolean })[] = [
   { view: "Our night", aside: "suggested", target: "[data-tour=suggested]", title: "Start from a suggested route", body: "Four themed routes. Previewing never changes anyone’s plan." },
   { view: "Explore", target: ".event-card .add-buttons", title: "Build your own route first", body: "Every activity has “My route” and “Our route” buttons. Plan your own night, then add the stops you like to the group’s route, or share your whole route under Ideas. In a crew, a Crew button appears too." },
   { target: ".share-button", title: "Invite friends", body: "One link; everyone who opens it can join and edit." },
+  { target: ".share-button", needsNight: true, title: "Share a view-only link", body: "Under Invite friends. People with it see your routes, times and places, but no names or votes, and can’t change anything. Handy for parents or friends who join later." },
+  { view: "Our night", aside: "route", target: ".route-list .drag-handle", needsNight: true, title: "Drag stops into order", body: "Hold the handle next to a stop and drag it up or down. With a keyboard: focus the handle and use the arrow keys." },
+  { view: "Our night", aside: "route", target: ".route-list .stop-summary", needsNight: true, title: "Mark a stop as maybe", body: "Tap a stop’s time, then Maybe. Maybe stops stay in the route but show greyed, with a dotted detour on the map, so everyone sees what’s optional." },
   { view: "Our night", aside: "route", target: ".view-toggle", needsNight: true, title: "See the night as a timeline", body: "Walking times between stops, clashes with opening hours, “push later stops to fit”, a suggested order, and calendar export." },
   { view: "Our night", aside: "personal", target: ".itinerary-tabs", needsNight: true, title: "Make your own route", body: "Under My route. It shows up for your friends under Ideas, where they can vote on it." },
   { view: "Our night", aside: "decide", target: ".itinerary-tabs", needsNight: true, title: "Decide together", body: "Everyone’s reactions in one table, a vote on route ideas, and a draft route from the top picks." },
@@ -205,6 +208,7 @@ function YourData() {
     <section>
       <h3>Who sees what</h3>
       <p><b className="ok">Your group</b>, everyone who joined with your night’s invite link, sees names, reactions, notes, routes and the list of changes.</p>
+      <p><b className="ok">People with your view-only link</b>, if your group makes one, see the routes with times and places. No names, reactions or notes. They don’t join the night, and a new link or “turn off” stops the old one.</p>
       <p><b className="ok">Only you</b> have your personal link and know which email it goes to.</p>
       <p><b className="no">Other groups</b> can’t list, search or open your night. There is no public list of nights; the only way in is the invite link. Anyone you forward that link to can join and edit, so share it with your group only.</p>
     </section>

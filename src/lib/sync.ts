@@ -5,7 +5,7 @@ import { createClient, type RealtimeChannel, type SupabaseClient } from "@supaba
 export type Night = { id: string; name: string; event_date: string; vote_deadline: string | null; route_locked_at: string | null; created_by: string };
 export type Member = { id: string; night_id: string; user_id: string; display_name: string; color: string; role: "organiser" | "planner" | "viewer"; fictional: boolean; joined_at: string };
 export type Route = { id: string; night_id: string; kind: "shared" | "personal" | "crew"; owner_user: string | null; crew_id: string | null; title: string; description: string; practical: string; updated_at: string };
-export type StopRow = { id: string; night_id: string; route_id: string; pos: number; event_id: string; arrival: string; duration: number; reason: string; practical: string; transfer: string; fixed: boolean; updated_by: string; updated_at: string };
+export type StopRow = { id: string; night_id: string; route_id: string; pos: number; event_id: string; arrival: string; duration: number; reason: string; practical: string; transfer: string; fixed: boolean; maybe?: boolean; updated_by: string; updated_at: string };
 export type Reaction = { id: string; night_id: string; user_id: string; event_id: string; reaction: "must" | "up" | "skip"; note: string; updated_at: string };
 export type IdeaVote = { id: string; night_id: string; user_id: string; route_id: string };
 export type Crew = { id: string; night_id: string; name: string; color: string; created_at: string };
@@ -47,6 +47,9 @@ export function friendly(message: string) {
 }
 
 /** `#me=<uid>.<secret>` from a personal link. Removed from the address at once, so it doesn't linger in history or screenshots. */
+/** A night as a view-only link shows it: routes and stops, no people. */
+export type ViewNight = { name: string; event_date: string; routes: { kind: "shared" | "crew"; title: string; color: string; stops: { event_id: string; arrival: string; duration: number; maybe: boolean; fixed: boolean }[] }[] };
+
 export type PersonalLink = { uid: string; secret: string };
 const linkEmail = (uid: string) => `m-${uid}@users.museumhop.arian-shafa.xyz`;
 function takeLink(): PersonalLink | null {
@@ -169,6 +172,26 @@ export class NightSync {
     if (!(await this.ready)) return "";
     const { data } = await this.sb.rpc("na_member_night", { p_token: token });
     return (data as string | null) ?? "";
+  }
+
+  /* ---------- view-only links ---------- */
+  /** The night's view-only link (made on first use); `renew` replaces it, turning the old one off. Planners and organisers only. */
+  async viewLink(nightId: string, opts: { crews?: boolean; renew?: boolean } = {}) {
+    await this.ready;
+    const { data, error } = await this.sb.rpc("na_view_link", { p_night: nightId, p_crews: opts.crews ?? null, p_new: !!opts.renew });
+    if (error || !data) throw new Error(error ? friendly(error.message) : "Only people who can plan can share a view-only link.");
+    const { token, crews } = data as { token: string; crews: boolean };
+    return { url: `${location.origin}${location.pathname}#view=${token}`, crews };
+  }
+  async viewLinkOff(nightId: string) {
+    const { error } = await this.sb.rpc("na_view_link_off", { p_night: nightId });
+    if (error) throw new Error(friendly(error.message));
+  }
+  /** What a view-only link shows (routes only). Works signed out. */
+  async viewNight(token: string) {
+    const { data, error } = await this.sb.rpc("na_view_night", { p_token: token });
+    if (error) throw new Error("Couldn’t load this night. Check your connection and try again.");
+    return data as ViewNight | null;
   }
 
   /* ---------- joining ---------- */

@@ -24,6 +24,7 @@ export function Timeline({ stops, title, onReschedule, onPropose, onPreview, onP
   const shown = previewing && suggestion ? suggestion.stops : stops;
   const a = useMemo(() => analyse(shown), [shown]);
   const now = useMemo(() => analyse(stops), [stops]);
+  const sureOnly = useMemo(() => (shown.some((s) => s.maybe) ? analyse(shown.filter((s) => !s.maybe)) : null), [shown]);
   const fitted = useMemo(() => pushToFit(stops), [stops]);
   const canPush = fitted.some((s, i) => s.arrival !== stops[i].arrival);
   const hours = Array.from({ length: 8 }, (_, i) => FROM + i * 60);
@@ -40,7 +41,7 @@ export function Timeline({ stops, title, onReschedule, onPropose, onPreview, onP
   return (
     <section className="timeline" aria-label={"Timeline of " + title}>
       <div className="tl-summary">
-        <div><small>On foot</small><b>{km(a.metres)}</b><span>{a.walkMinutes} min walking</span></div>
+        <div><small>On foot</small><b>{km(a.metres)}</b><span>{a.walkMinutes} min walking{sureOnly ? ` · ${km(sureOnly.metres)} without maybes` : ""}</span></div>
         <div><small>Night ends</small><b>{a.ends != null ? clock(a.ends) : "–"}</b><span>{byId.get(shown.at(-1)!.id)?.venue}</span></div>
       </div>
 
@@ -81,11 +82,11 @@ export function Timeline({ stops, title, onReschedule, onPropose, onPreview, onP
               </div>
             ),
             s.window && <div key={"o" + s.id} className="tl-window" style={{ top: y(s.window[0]), height: y(s.window[1]) - y(s.window[0]), left: 44 + (i % 3) * 5 }} title={`${e?.title} is on ${clock(s.window[0])}–${clock(s.window[1])}`} />,
-            <button key={s.id} className={"tl-block" + (s.estimated ? " estimated" : "") + (s.outside ? " outside" : "") + (s.fixed ? " fixed" : "")}
+            <button key={s.id} className={"tl-block" + (s.estimated ? " estimated" : "") + (s.outside ? " outside" : "") + (s.fixed ? " fixed" : "") + (shown[i]?.maybe ? " maybe" : "")}
               style={{ top: y(s.start), height: Math.max(s.duration * PX, 44) }} onClick={() => e && onPick(e)}>
               {i > 0 && s.walk.minutes > 0 && s.walk.minutes < 10 && !s.tight && <small className="tl-walked"><Footprints size={9} />{s.walk.minutes} min walk · {km(s.walk.metres)}</small>}
               <b>{i + 1}. {e?.title}</b>
-              <small>{clock(s.start)}–{clock(s.end)}{s.estimated ? " · no time set" : ""}{s.fixed ? " · fixed" : ""} · {e?.venue}</small>
+              <small>{clock(s.start)}–{clock(s.end)}{s.estimated ? " · no time set" : ""}{s.fixed ? " · fixed" : ""}{shown[i]?.maybe ? " · maybe" : ""} · {e?.venue}</small>
             </button>,
           ];
         })}

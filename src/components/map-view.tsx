@@ -111,7 +111,8 @@ export function MapView({ visible, lines, onSelect, focus, fit, transport }: { v
     }
     for (const p of stops) {
       const label = [...p.nums].sort((a, b) => a - b).join("·"), m = p.venues[0].m, width = Math.max(30, 14 + label.length * 7);
-      const icon = L.divIcon({ className: "venue-pin " + (p.other ? "crew" : "chosen"), html: `<span${p.other ? ` style="background:${p.other}"` : ""}>${label}</span>`, iconSize: [width, 30], iconAnchor: [width / 2, 15] });
+      const maybe = !p.other && p.nums.every((n) => numbered?.stops[n - 1]?.maybe);
+      const icon = L.divIcon({ className: "venue-pin " + (p.other ? "crew" : "chosen") + (maybe ? " maybe" : ""), html: `<span${p.other ? ` style="background:${p.other}"` : ""}>${label}</span>`, iconSize: [width, 30], iconAnchor: [width / 2, 15] });
       const marker = L.marker([m.lat, m.lng], { icon, keyboard: true, title: p.venues.map((v) => v.m.name).join(" + "), zIndexOffset: 1000 }).addTo(layer.current);
       marker.bindTooltip(p.venues.map((v) => v.m.name).join(" + "), { direction: "top", offset: [0, -15] });
       if (p.venues.length === 1) marker.on("click", () => select.current(museumItem(m)));
@@ -166,7 +167,12 @@ export function MapView({ visible, lines, onSelect, focus, fit, transport }: { v
     }
     line.current.clearLayers();
     for (const l of lines) {
-      const coords = l.stops.map((s) => byMuseum.get(byId.get(s.id)?.museumId || "")).filter((m) => m?.lat != null).map((m) => [m!.lat, m!.lng]);
+      const at = (stops: UiStop[]) => stops.map((s) => byMuseum.get(byId.get(s.id)?.museumId || "")).filter((m) => m?.lat != null).map((m) => [m!.lat, m!.lng]);
+      // With maybe stops, the whole route is a grey dotted line and the sure stops get the route's own line on top,
+      // so maybes read as detours you can skip.
+      const sure = l.stops.filter((s) => !s.maybe);
+      if (sure.length < l.stops.length) { const all = at(l.stops); if (all.length > 1) L.polyline(all, { color: "#8c7b75", weight: 3, opacity: 0.9, dashArray: "1 8", lineCap: "round" }).addTo(line.current); }
+      const coords = at(sure);
       if (coords.length > 1) L.polyline(coords, { color: l.color, weight: l.numbered ? 4 : 5, opacity: 0.85, dashArray: l.dashed === false ? undefined : "7 8" }).addTo(line.current);
     }
   }, [ready, visible, lines, zoom]);

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { UiStop } from "./catalogue";
 import { newId, sync, type Data, type Member, type Op, type Route, type StopRow, type Status } from "./sync";
 
-export const toUi = (s: StopRow): UiStop => ({ id: s.event_id, arrival: s.arrival, duration: s.duration, reason: s.reason, practical: s.practical, transfer: s.transfer, fixed: s.fixed, rowId: s.id, pos: s.pos });
+export const toUi = (s: StopRow): UiStop => ({ id: s.event_id, arrival: s.arrival, duration: s.duration, reason: s.reason, practical: s.practical, transfer: s.transfer, fixed: s.fixed, rowId: s.id, pos: s.pos, maybe: !!s.maybe });
 
 /** Re-renders on every change in the sync engine. */
 export function useSync() {
@@ -59,6 +59,7 @@ export function rescheduleOps(stops: UiStop[], next: UiStop[]): Op[] {
 
 export const timingOps = (s: UiStop, arrival: string, duration: number): Op[] =>
   s.rowId ? [{ t: "update", table: "na_stops", id: s.rowId, patch: { arrival, duration } }] : [];
+export const maybeOps = (s: UiStop, maybe: boolean): Op[] => (s.rowId ? [{ t: "update", table: "na_stops", id: s.rowId, patch: { maybe } }] : []);
 export const removeOps = (s: UiStop): Op[] => (s.rowId ? [{ t: "delete", table: "na_stops", id: s.rowId }] : []);
 
 /** Ops that give `userId` a personal route (if needed) and fill it with `stops`, e.g. a copy of the shared route. */
@@ -69,7 +70,7 @@ export function personalRouteOps(nightId: string, userId: string, existing: Rout
   let pos = keep.at(-1)?.pos ?? 0;
   for (const s of stops) {
     if (keep.some((k) => k.id === s.id)) continue;
-    ops.push({ t: "insert", table: "na_stops", row: { id: newId(), night_id: nightId, route_id: routeId, pos: ++pos, event_id: s.id, arrival: s.arrival, duration: s.duration, reason: s.reason ?? "", practical: s.practical ?? "", transfer: s.transfer ?? "", fixed: !!s.fixed } });
+    ops.push({ t: "insert", table: "na_stops", row: { id: newId(), night_id: nightId, route_id: routeId, pos: ++pos, event_id: s.id, arrival: s.arrival, duration: s.duration, reason: s.reason ?? "", practical: s.practical ?? "", transfer: s.transfer ?? "", fixed: !!s.fixed, maybe: !!s.maybe } });
   }
   return { routeId, ops };
 }
@@ -78,6 +79,6 @@ export function personalRouteOps(nightId: string, userId: string, existing: Rout
 export function replaceRouteOps(route: Route, current: UiStop[], next: UiStop[]): Op[] {
   return [
     ...current.filter((s) => s.rowId).map((s): Op => ({ t: "delete", table: "na_stops", id: s.rowId! })),
-    ...next.map((s, i): Op => ({ t: "insert", table: "na_stops", row: { id: newId(), night_id: route.night_id, route_id: route.id, pos: i + 1, event_id: s.id, arrival: s.arrival, duration: s.duration, reason: s.reason ?? "", practical: s.practical ?? "", transfer: s.transfer ?? "", fixed: !!s.fixed } })),
+    ...next.map((s, i): Op => ({ t: "insert", table: "na_stops", row: { id: newId(), night_id: route.night_id, route_id: route.id, pos: i + 1, event_id: s.id, arrival: s.arrival, duration: s.duration, reason: s.reason ?? "", practical: s.practical ?? "", transfer: s.transfer ?? "", fixed: !!s.fixed, maybe: !!s.maybe } })),
   ];
 }
