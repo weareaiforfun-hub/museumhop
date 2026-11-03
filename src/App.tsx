@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpRight, Bus, Check, KeyRound, ChevronRight, Clock, Compass, Map as MapIcon, MapPin, Moon, Plus, Route, Search, Share2, Sparkles, Star, Utensils, Undo2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpRight, Bus, Check, KeyRound, ChevronRight, Clock, Compass, Mail, Map as MapIcon, MapPin, Moon, Plus, Route, Search, Share2, Sparkles, Star, Utensils, Undo2, X } from "lucide-react";
 import { activities, byId, byMuseum, COLORS, FOOD, initials, items, minute, warnings, type Item, type UiStop } from "./lib/catalogue";
 import { addStopOps, derive, personalRouteOps, removeOps, reorderOps, replaceRouteOps, rescheduleOps, timingOps, useSync } from "./lib/night";
 import { newId, sync, type Op } from "./lib/sync";
@@ -11,7 +11,7 @@ import { Timeline } from "./components/timeline";
 import { RouteStop } from "./components/route-stop";
 import { Crews } from "./components/crews";
 import { BrandMark } from "./components/brand-mark";
-import { HelpButton, introSeen, Onboarding, type HelpTab, type Place } from "./components/onboarding";
+import { CONTACT, HelpButton, MAKER, introSeen, Onboarding, type HelpTab, type Place } from "./components/onboarding";
 import { KeepSpot, RecoverByEmail } from "./components/keep-spot";
 import { GettingAround, RideCard } from "./components/getting-around";
 import { MODES } from "./data/transport";
@@ -319,23 +319,26 @@ export default function App() {
           <label className="search"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search places, activities…" aria-label="Search places and activities" />{query && <button aria-label="Clear search" onClick={() => setQuery("")}><X size={15} /></button>}</label>
           <div className="filter-row"><select value={tag} onChange={(e) => setTag(e.target.value)} aria-label="Activity type" disabled={category === "Museums"}><option>All types</option>{types.map((t) => <option key={t}>{t}</option>)}</select><button className={"suggested-filter " + (suggestedOnly ? "active" : "")} onClick={() => setSuggestedOnly(!suggestedOnly)}><Star size={14} />Picks</button></div>
           {suggestedOnly && <select className="person-select" aria-label="Filter suggestions by person" value={personFilter} onChange={(e) => setPersonFilter(e.target.value)}><option value="all">Everyone’s picks</option>{people.map((m) => <option key={m.id} value={m.id}>{m.name}{m.fictional ? " · fictional" : ""}</option>)}</select>}
-          <label className="add-target">Add stops to<select aria-label="Add stops to" value={target} onChange={(e) => { const v = e.target.value as "shared" | "personal" | "crew"; setTarget(v); if (v !== "shared") { setAsideMode(v === "crew" ? "crews" : "personal"); setPreviewId(null); } }}><option value="shared">Our shared route</option><option value="personal">My personal route</option>{crewRoute && <option value="crew">{myCrewName}’s route</option>}</select></label>
           <div className="results-line"><span>{filtered.length} {category === "Museums" ? "museums" : "options"} to discover</span><span>⌖ Amsterdam</span></div>
         </div>
         <div className="event-list">
           {filtered.length === 0 && <div className="empty"><Search size={26} /><h3>No matches yet</h3><p>Try another search or filter. Your next discovery is out there.</p><button onClick={() => { setQuery(""); setTag("All types"); setSuggestedOnly(false); }}>Clear filters</button></div>}
           {filtered.map((e) => {
-            const chosen = (target === "personal" ? myRoute : target === "crew" ? crewStops : route).some((s) => s.id === e.id), food = e.tags.includes(FOOD);
-            return <article key={e.id} className={"event-card " + (chosen ? "on-route" : "")}>
+            const inMine = myRoute.some((s) => s.id === e.id), inOurs = route.some((s) => s.id === e.id), inCrew = crewStops.some((s) => s.id === e.id), food = e.tags.includes(FOOD);
+            return <article key={e.id} className={"event-card " + (inOurs || inMine || inCrew ? "on-route" : "")}>
               <div className="card-topline"><span className={"type-label " + (food ? "food-label" : "")}>{e.id.startsWith("museum:") ? "MUSEUM" : food ? "FOOD & DRINK" : e.tags[0] || "DISCOVER"}</span><ReactionButtons value={myReaction(e.id)} onChange={(r) => react(e.id, r)} title={e.title} /></div>
               <button className="card-title" onClick={() => pick(e)}>{e.title}<ArrowUpRight size={16} /></button>
               {!e.id.startsWith("museum:") && <p className="venue"><MapPin size={13} />{e.venue}</p>}
-              <div className="card-bottom"><span><Clock size={13} />{e.time.replace(" - ", " – ")}</span><button className={chosen ? "added" : "add-button"} disabled={chosen} onClick={() => addTo(e.id)} aria-label={(target === "personal" ? "Add to my route: " : target === "crew" ? "Add to my crew's route: " : "Add to route: ") + e.title}>{chosen ? <><Check size={14} />Added</> : <><Plus size={14} />{target === "personal" ? "My route" : target === "crew" ? "Crew" : "Route"}</>}</button></div>
+              <div className="card-bottom"><span><Clock size={13} />{e.time.replace(" - ", " – ")}</span><div className="add-buttons">
+                <button className={inMine ? "added" : "add-button"} disabled={inMine} onClick={() => { track("stop-add", { route: "personal" }); addPersonal(e.id); }} aria-label={"Add to my route: " + e.title}>{inMine ? <Check size={14} /> : <Plus size={14} />}My route</button>
+                <button className={inOurs ? "added" : "add-button"} disabled={inOurs} onClick={() => { track("stop-add", { route: "shared" }); addShared(e.id); }} aria-label={"Add to our route: " + e.title}>{inOurs ? <Check size={14} /> : <Plus size={14} />}Our route</button>
+                {crewRoute && <button className={inCrew ? "added" : "add-button"} disabled={inCrew} onClick={() => { track("stop-add", { route: "crew" }); addCrew(e.id); }} aria-label={`Add to ${myCrewName}’s route: ${e.title}`}>{inCrew ? <Check size={14} /> : <Plus size={14} />}Crew</button>}
+              </div></div>
               {suggesters(e.id).length > 0 && <div className="suggested-by">{suggesters(e.id).map((s) => { const R = REACTIONS.find((x) => x.key === s.reaction)!; return <span key={s.member_id} title={(s.note || R.label)}><R.Icon size={10} />{nameOf(s.member_id)}</span>; })}</div>}
             </article>;
           })}
         </div>
-        <footer className="data-note">Programme snapshot · 1 Nov 2026<br />Check the official listing for updates and availability.<br />Unofficial fan planner · not affiliated with Museumnacht Amsterdam / N8. · <button className="footer-link" onClick={() => { setHelpTab("data"); setHelpOpen(true); }}>Your data</button></footer>
+        <footer className="data-note">Programme snapshot · 1 Nov 2026<br />Check the official listing for updates and availability.<br />Unofficial fan planner · not affiliated with Museumnacht Amsterdam / N8. · <button className="footer-link" onClick={() => { setHelpTab("data"); setHelpOpen(true); }}>Your data</button> · <a className="footer-link" href={CONTACT}>Contact the developer</a><br /><a className="footer-link maker" href={MAKER} target="_blank" rel="noopener">A project by Arian Shafa ↗</a></footer>
       </section>
 
       <section className="map-panel" aria-label="Amsterdam map">
@@ -419,7 +422,7 @@ export default function App() {
             })}
           </div>
         </>}
-        <div className="night-footer"><Moon size={14} /><span>One ticket. Your kind of night.</span></div>
+        <div className="night-footer"><Moon size={14} /><span>One ticket. Your kind of night.</span><a className="contact-link" href={CONTACT}><Mail size={13} />Report a problem</a><a className="footer-link" href={MAKER} target="_blank" rel="noopener">A project by Arian Shafa ↗</a></div>
       </aside>
     </div>
     {(toast || undo) && <div className="toast" role="status"><Check size={17} /><span>{toast || undo!.text}</span>{!toast && undo && <button className="toast-undo" onClick={() => { sync!.apply(undo.ops); setUndo(null); }}><Undo2 size={14} />Undo</button>}</div>}

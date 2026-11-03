@@ -1,6 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { track } from "../lib/track";
-import { ArrowLeft, ArrowRight, Compass, HelpCircle, Route, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Compass, HelpCircle, Mail, Route, Sparkles, X } from "lucide-react";
+
+/** Problems and ideas go straight to the developer. The address in the link never includes invite or personal links. */
+export const CONTACT = "mailto:arian.shafa.analytics@gmail.com?subject=" + encodeURIComponent("MuseumHop: a problem or an idea")
+  + "&body=" + encodeURIComponent("What happened, or what would you like?\n\n\nPhone or computer, and which browser:\n");
+export const MAKER = "https://arian-shafa.xyz";
 
 /** Which part of the app a spotlight step needs on screen (phones show one part at a time). */
 export type Place = { view?: "Explore" | "Map" | "Our night"; aside?: "route" | "suggested" | "personal" | "ideas" | "decide" | "crews" | "activity" };
@@ -19,7 +24,7 @@ const SLIDES = [
 const TOUR: Spot[] = [
   { view: "Explore", target: ".explore-controls", title: "Search and filter", body: "Search by activity, venue or street. Filter by type, or switch to museums and food & drink." },
   { view: "Explore", target: ".event-card .reaction-buttons", title: "React to activities", body: "Must, Up for it or Skip. Friends see your picks, and the Decide tab adds everyone’s reactions up." },
-  { view: "Explore", target: ".event-card .card-bottom button", title: "Add a stop", body: "Adds the activity to the route picked under “Add stops to”: the group’s route, your own, or your crew’s." },
+  { view: "Explore", target: ".event-card .add-buttons", title: "Add a stop", body: "“My route” builds your own plan first; “Our route” adds it to the group’s. Share your picks with the group whenever you’re ready." },
   { view: "Map", target: ".map-panel", title: "The map", body: "Each dot is a venue; bigger dots have more on. A ring groups venues that sit close together: tap it to zoom in. Coral numbers are your route in order." },
   { view: "Map", target: ".rides-button", title: "Getting around", body: "Shows the free Museumnacht buses, boats, ferries, the museum tram and bike parking on the map. Tap a stop for its times, how it compares to walking, and to add the ride to your route." },
   { view: "Our night", aside: "suggested", target: "[data-tour=suggested]", title: "Suggested routes", body: "Four ready-made routes with a reason for every stop. Preview one, then use it as your group’s route." },
@@ -35,7 +40,7 @@ const FEATURES: (Spot & { needsNight?: boolean })[] = [
   { view: "Explore", target: ".event-card .reaction-buttons", title: "React instead of just starring", body: "Must, Up for it or Skip, with an optional note in the activity details." },
   { view: "Explore", target: ".suggested-filter", title: "Filter by your friends’ picks", body: "Picks shows only what someone reacted to; choose a person to see just theirs." },
   { view: "Our night", aside: "suggested", target: "[data-tour=suggested]", title: "Start from a suggested route", body: "Four themed routes. Previewing never changes anyone’s plan." },
-  { view: "Explore", target: ".add-target", title: "Choose whose route a stop goes to", body: "The shared route, your personal route, or your crew’s route." },
+  { view: "Explore", target: ".event-card .add-buttons", title: "Build your own route first", body: "Every activity has “My route” and “Our route” buttons. Plan your own night, then add the stops you like to the group’s route, or share your whole route under Ideas. In a crew, a Crew button appears too." },
   { target: ".share-button", title: "Invite friends", body: "One link; everyone who opens it can join and edit." },
   { view: "Our night", aside: "route", target: ".view-toggle", needsNight: true, title: "See the night as a timeline", body: "Walking times between stops, clashes with opening hours, “push later stops to fit”, a suggested order, and calendar export." },
   { view: "Our night", aside: "personal", target: ".itinerary-tabs", needsNight: true, title: "Make your own route", body: "Under My route. It shows up for your friends under Ideas, where they can vote on it." },
@@ -155,6 +160,7 @@ export function Onboarding({ show, inNight, helpOpen, setHelpOpen, helpTab }: { 
             <p><i className="venue-pin chosen" style={{ width: 26, height: 26 }}><span>2</span></i>Stop 2 of the route you’re looking at.</p>
           </div>
           <p className="help-note">MuseumHop is an unofficial fan planner, not affiliated with Museumnacht Amsterdam / N8. Always check the official listing for times and tickets.</p>
+          <p className="help-contact"><Mail size={15} /><span>Found a bug, or missing something? <a href={CONTACT}>Email the developer</a>; problems get fixed faster that way.<br /><a href={MAKER} target="_blank" rel="noopener">A project by Arian Shafa ↗</a></span></p>
           <button className="secondary" onClick={() => { setHelpOpen(false); setSlide(0); }}>Replay the intro</button>
           <button className="primary" onClick={startTour}>Take the 30-second tour<ArrowRight size={16} /></button>
         </div> : <div role="tabpanel" className="help-panel">

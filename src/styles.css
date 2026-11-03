@@ -224,3 +224,8 @@
 
 /* The route-preview banner leaves room for the Getting around button beside it (phones put that button at the bottom). */
 @media(min-width:761px){.preview-banner{right:168px}}
+
+/* Each card adds to my route or our route directly (and the crew route when in one). */
+.card-bottom{gap:10px;flex-wrap:wrap}.add-buttons{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}.add-buttons .added{opacity:1}
+/* Contact the developer and the maker link. */
+.night-footer{flex-wrap:wrap;row-gap:8px}.night-footer .contact-link,.night-footer .footer-link{font-size:9px;color:#5f7268}.contact-link{display:inline-flex;align-items:center;gap:4px;text-decoration:underline;text-underline-offset:2px;margin-left:8px}.help-contact{display:flex;gap:10px;align-items:flex-start;font-size:12px;line-height:1.7;background:#f0f3e9;border-radius:8px;padding:12px 14px;margin:4px 0 14px}.help-contact svg{margin-top:4px;flex:none}.help-contact a{text-decoration:underline;text-underline-offset:2px;font-weight:600}.data-note .maker{font-weight:600;color:#5f7268}
