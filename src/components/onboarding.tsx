@@ -21,48 +21,83 @@ const SLIDES = [
   { icon: Sparkles, eyebrow: "Welcome · 3 of 3", title: "Or start from a suggested route.", body: "Four themed routes are ready to preview on the map. Use one as your group’s route, then make it yours." },
 ];
 
+/** The 30-second tour: only what adds the most and is easy to miss. Everything else is in "What can I do?". A target can
+ *  list several selectors; the first one on screen wins (so a step works before and after joining a night). */
 const TOUR: Spot[] = [
-  { view: "Explore", target: ".explore-controls", title: "Search and filter", body: "Search by activity, venue or street. Filter by type, or switch to museums and food & drink." },
-  { view: "Explore", target: ".event-card .reaction-buttons", title: "React to activities", body: "Must, Up for it or Skip. Friends see your picks, and the Decide tab adds everyone’s reactions up." },
-  { view: "Explore", target: ".event-card .add-buttons", title: "Add a stop", body: "“My route” builds your own plan first; “Our route” adds it to the group’s. Share your picks with the group whenever you’re ready." },
-  { view: "Map", target: ".map-panel", title: "The map", body: "Each dot is a venue; bigger dots have more on. A ring groups venues that sit close together: tap it to zoom in. Coral numbers are your route in order." },
-  { view: "Map", target: ".rides-button", title: "Getting around", body: "Shows the free Museumnacht buses, boats, ferries, the museum tram and bike parking on the map. Tap a stop for its times, how it compares to walking, and to add the ride to your route." },
-  { view: "Our night", aside: "suggested", target: "[data-tour=suggested]", title: "Suggested routes", body: "Four ready-made routes with a reason for every stop. Preview one, then use it as your group’s route." },
-  { target: ".share-button", title: "Plan with friends", body: "Create your night and copy the invite link. Anyone with it can join; no account needed." },
-  { view: "Explore", target: ".data-note .footer-link", title: "Your data, your spot", body: "Only the people in your night can see it. Once you’re in, “Keep your spot” gives you a personal link (or emails it to you) that opens the night as you on any device. “Your data” says what’s stored and when it’s deleted." },
-  { target: ".help-button", title: "Help lives here", body: "Replay this tour, or see everything MuseumHop can do, including the features that are easy to miss." },
+  { view: "Explore", target: ".event-card .reaction-buttons", title: "React to what you like", body: "Must, Up for it or Skip. Your friends see your picks, and the Decide tab adds everyone’s up." },
+  { view: "Explore", target: ".event-card .add-buttons", title: "My route or Our route", body: "“My route” is your own plan. “Our route” is the group’s. Nothing lands in the group’s route until you add it there." },
+  { view: "Map", target: ".rides-button", title: "The map, and getting around", body: "Every dot is a venue; bigger dots have more on. Getting around adds the free buses, boats, ferries and bike parking, with times and how they compare to walking." },
+  { view: "Our night", aside: "suggested", target: "[data-tour=suggested]", title: "Not sure where to start?", body: "Four ready-made routes with a reason for every stop. Preview one on the map, then use it as your group’s route." },
+  { target: ".share-button", title: "Invite friends, or just show them", body: "The invite link lets friends plan with you, no account needed. Once your night exists, the same button gives a view-only link too: routes and times, no names, no editing." },
+  { view: "Our night", aside: "route", target: ".route-list, .route-content, .itinerary", title: "Shape the route", body: "Drag a stop by its handle to move it. Tap its time to mark it Maybe: it stays in, greyed out. Timeline shows the walks, clashes and when you’ll be done." },
+  { view: "Explore", target: ".spot-banner, .data-note .footer-link", title: "Your night, on any device", body: "Only the people in your night can see it. “Keep your spot” gives you a personal link that opens the night as you on another phone or laptop. Keep that one to yourself." },
+  { target: ".help-button", title: "Everything else is in here", body: "Crews and meet-ups, voting, calendar export and more: tap ? and open “What can I do?”. You can replay this tour from there." },
 ];
 
-/** Features worth knowing, for the "What can I do?" tab. `needsNight` ones only exist once you're in a night. */
-const FEATURES: (Spot & { needsNight?: boolean })[] = [
-  { view: "Map", target: ".map-panel", title: "Tap a venue on the map", body: "Opens the venue with everything on there tonight. Tap a ring to zoom into venues close together." },
-  { view: "Map", target: ".rides-button", title: "See buses, boats and ferries", body: "Getting around shows the free Museumnacht buses, the uitvaartbus, the Lampedusa boat, ferries, the museum tram and bike parking. Tap a ride to add it to your route." },
-  { view: "Explore", target: ".event-card .reaction-buttons", title: "React instead of just starring", body: "Must, Up for it or Skip, with an optional note in the activity details." },
-  { view: "Explore", target: ".suggested-filter", title: "Filter by your friends’ picks", body: "Picks shows only what someone reacted to; choose a person to see just theirs." },
-  { view: "Our night", aside: "suggested", target: "[data-tour=suggested]", title: "Start from a suggested route", body: "Four themed routes. Previewing never changes anyone’s plan." },
-  { view: "Explore", target: ".event-card .add-buttons", title: "Build your own route first", body: "Every activity has “My route” and “Our route” buttons. Plan your own night, then add the stops you like to the group’s route, or share your whole route under Ideas. In a crew, a Crew button appears too." },
-  { target: ".share-button", title: "Invite friends", body: "One link; everyone who opens it can join and edit." },
-  { target: ".share-button", needsNight: true, title: "Share a view-only link", body: "Under Invite friends. People with it see your routes, times and places, but no names or votes, and can’t change anything. Handy for parents or friends who join later." },
-  { view: "Our night", aside: "route", target: ".route-list .drag-handle", needsNight: true, title: "Drag stops into order", body: "Hold the handle next to a stop and drag it up or down. With a keyboard: focus the handle and use the arrow keys." },
-  { view: "Our night", aside: "route", target: ".route-list .stop-summary", needsNight: true, title: "Mark a stop as maybe", body: "Tap a stop’s time, then Maybe. Maybe stops stay in the route but show greyed, with a dotted detour on the map, so everyone sees what’s optional." },
-  { view: "Our night", aside: "route", target: ".view-toggle", needsNight: true, title: "See the night as a timeline", body: "Walking times between stops, clashes with opening hours, “push later stops to fit”, a suggested order, and calendar export." },
-  { view: "Our night", aside: "personal", target: ".itinerary-tabs", needsNight: true, title: "Make your own route", body: "Under My route. It shows up for your friends under Ideas, where they can vote on it." },
-  { view: "Our night", aside: "decide", target: ".itinerary-tabs", needsNight: true, title: "Decide together", body: "Everyone’s reactions in one table, a vote on route ideas, and a draft route from the top picks." },
-  { view: "Our night", aside: "crews", target: ".itinerary-tabs", needsNight: true, title: "Split into crews", body: "Small groups with their own routes and meet-up points, all on one map." },
-  { view: "Our night", aside: "activity", target: ".itinerary-tabs", needsNight: true, title: "See who changed what", body: "The Activity tab lists every change. Your own changes can be undone from the message that appears." },
-  { target: ".spot-banner, .profile", needsNight: true, title: "Keep your spot on any device", body: "Your personal link opens the night as you, with your reactions and routes, on a new phone, laptop or browser. Get it from “Keep your spot” or by tapping your name, and email it to yourself if you like: on a new device, “Get your link by email” sends a fresh one. Keep it private: it isn’t the invite link." },
-  { view: "Explore", target: ".data-note .footer-link", title: "See what’s stored about you", body: "Your data explains who can see your night, what MuseumHop keeps (no ads or tracking cookies; only cookie-free usage counts), and that everything is deleted 30 days after the night." },
+type Feature = Spot & { needsNight?: boolean; group: string };
+/** Everything MuseumHop can do, for the "What can I do?" tab, in groups. `needsNight` ones only exist once you're in a night. */
+const FEATURES: Feature[] = [
+  { group: "Find things", view: "Explore", target: ".explore-controls", title: "Search and filter", body: "Search by activity, venue or street. Filter by type (music, talks, workshops…), or switch to museums or food & drink." },
+  { group: "Find things", view: "Map", target: ".map-panel", title: "Tap a venue on the map", body: "Opens the venue with everything on there tonight. Tap a ring to zoom into venues close together." },
+  { group: "Find things", view: "Map", target: ".rides-button", title: "See buses, boats and ferries", body: "Getting around shows the free Museumnacht buses, the uitvaartbus, the Lampedusa boat, ferries, the museum tram and bike parking. Tap a ride to add it to your route." },
+  { group: "Find things", view: "Explore", target: ".event-card", title: "Open an activity", body: "Tap a title for the details, a link to the official listing, and a note on why you’d like to go." },
+  { group: "Find things", view: "Our night", aside: "suggested", target: "[data-tour=suggested]", title: "Start from a suggested route", body: "Four themed routes. Previewing never changes anyone’s plan." },
+  { group: "Plan your route", view: "Explore", target: ".event-card .add-buttons", title: "Build your own route first", body: "Every activity has “My route” and “Our route” buttons. Plan your own night, then add the stops you like to the group’s route, or share your whole route under Ideas. In a crew, a Crew button appears too." },
+  { group: "Plan your route", view: "Our night", aside: "route", target: ".route-list .drag-handle", needsNight: true, title: "Drag stops into order", body: "Hold the handle next to a stop and drag it up or down; the list scrolls along. With a keyboard: focus the handle and use the arrow keys." },
+  { group: "Plan your route", view: "Our night", aside: "route", target: ".route-list .stop-summary", needsNight: true, title: "Mark a stop as maybe", body: "Tap a stop’s time, then Maybe. Maybe stops stay in the route but show greyed, with a dotted detour on the map, so everyone sees what’s optional." },
+  { group: "Plan your route", view: "Our night", aside: "route", target: ".view-toggle", needsNight: true, title: "See the night as a timeline", body: "Walking times between stops, clashes with opening hours, “push later stops to fit”, a suggested order, and calendar export." },
+  { group: "Plan your route", view: "Our night", aside: "personal", target: ".itinerary-tabs", needsNight: true, title: "Make your own route", body: "Under My route. It shows up for your friends under Ideas, where they can vote on it." },
+  { group: "With your group", view: "Explore", target: ".event-card .reaction-buttons", title: "React instead of just starring", body: "Must, Up for it or Skip, with an optional note in the activity details." },
+  { group: "With your group", view: "Explore", target: ".suggested-filter", title: "Filter by your friends’ picks", body: "Picks shows only what someone reacted to; choose a person to see just theirs." },
+  { group: "With your group", target: ".share-button", title: "Invite friends", body: "One link; everyone who opens it can join and edit." },
+  { group: "With your group", target: ".share-button", needsNight: true, title: "Share a view-only link", body: "Under Invite friends. People with it see your routes, times and places, but no names or votes, and can’t change anything. Handy for parents or friends who join later." },
+  { group: "With your group", view: "Our night", aside: "decide", target: ".itinerary-tabs", needsNight: true, title: "Decide together", body: "Everyone’s reactions in one table, a vote on route ideas, and a draft route from the top picks." },
+  { group: "With your group", view: "Our night", aside: "crews", target: ".itinerary-tabs", needsNight: true, title: "Split into crews", body: "Small groups with their own routes and meet-up points, all on one map." },
+  { group: "With your group", view: "Our night", aside: "activity", target: ".itinerary-tabs", needsNight: true, title: "See who changed what", body: "The Activity tab lists every change. Your own changes can be undone from the message that appears." },
+  { group: "Your spot and your data", target: ".spot-banner, .profile", needsNight: true, title: "Keep your spot on any device", body: "Your personal link opens the night as you, with your reactions and routes, on a new phone, laptop or browser. Get it from “Keep your spot” or by tapping your name, and email it to yourself if you like: on a new device, “Get your link by email” sends a fresh one. Keep it private: it isn’t the invite link." },
+  { group: "Your spot and your data", view: "Explore", target: ".data-note .footer-link", title: "See what’s stored about you", body: "Your data explains who can see your night, what MuseumHop keeps (no ads or tracking cookies; only cookie-free usage counts), and that everything is deleted 30 days after the night." },
 ];
+const GROUPS = Array.from(new Set(FEATURES.map((f) => f.group)));
+
+/** Step through slides by swiping or scrolling (wheel or trackpad), on top of the buttons and arrow keys. One gesture
+ *  moves one step: a trackpad's long scroll is ignored until it has stopped. */
+function useFlip(onNext?: () => void, onBack?: () => void) {
+  const g = useRef({ sum: 0, locked: false, timer: 0, x: 0, y: 0, swiped: false });
+  const flip = (forward: boolean) => { (forward ? onNext : onBack)?.(); };
+  return {
+    onWheel(e: React.WheelEvent) {
+      const s = g.current, d = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      clearTimeout(s.timer);
+      s.timer = window.setTimeout(() => { s.locked = false; s.sum = 0; }, 220);
+      if (s.locked) return;
+      s.sum += d;
+      if (Math.abs(s.sum) > 50) { s.locked = true; flip(s.sum > 0); }
+    },
+    onTouchStart(e: React.TouchEvent) { g.current.x = e.touches[0].clientX; g.current.y = e.touches[0].clientY; g.current.swiped = false; },
+    onTouchEnd(e: React.TouchEvent) {
+      const t = e.changedTouches[0], dx = t.clientX - g.current.x, dy = t.clientY - g.current.y;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 40) return;
+      g.current.swiped = true; // not a tap: don't let it close anything
+      flip(Math.abs(dx) > Math.abs(dy) ? dx < 0 : dy < 0);
+    },
+    /** True right after a swipe, so the tap-to-close behind it can ignore the touch. */
+    swiped: () => { const s = g.current.swiped; g.current.swiped = false; return s; },
+  };
+}
 
 /** A dimmed page with one element cut out, and a card that explains it. */
-function Spotlight({ spot, step, total, onBack, onNext, onClose }: { spot: Spot; step?: number; total?: number; onBack?: () => void; onNext?: () => void; onClose: () => void }) {
+function Spotlight({ spot, step, steps, onBack, onNext, onJump, onClose }: { spot: Spot; step?: number; steps?: string[]; onBack?: () => void; onNext?: () => void; onJump?: (i: number) => void; onClose: () => void }) {
+  const total = steps?.length, flip = useFlip(total ? onNext : undefined, onBack);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const card = useRef<HTMLElement>(null), [cardH, setCardH] = useState(200);
   useLayoutEffect(() => { const h = card.current?.offsetHeight; if (h && h !== cardH) setCardH(h); });
   useLayoutEffect(() => {
     // Follows the target while open: smooth scrolling, layout shifts and resizes all move it.
     let last = "";
-    const el = () => Array.from(document.querySelectorAll<HTMLElement>(spot.target)).find((n) => n.offsetParent !== null) ?? null;
+    const el = () => {
+      for (const sel of spot.target.split(",")) { const n = Array.from(document.querySelectorAll<HTMLElement>(sel)).find((x) => x.offsetParent !== null); if (n) return n; }
+      return null;
+    };
     el()?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
     const measure = () => {
       const r = el()?.getBoundingClientRect() ?? null, key = r ? [r.top, r.left, r.width, r.height].map(Math.round).join() : "";
@@ -84,15 +119,17 @@ function Spotlight({ spot, step, total, onBack, onNext, onClose }: { spot: Spot;
   const tall = !!box && box.height > window.innerHeight * 0.45; // no room beside it: sit at the bottom, over the target
   const cardTop = !box ? window.innerHeight / 2 - 90 : tall ? window.innerHeight - cardH - 16 : below ? Math.min(box.top + box.height + 12, window.innerHeight - cardH - 12) : Math.max(12, box.top - 12 - cardH);
   const cardLeft = !box || tall ? (window.innerWidth - w) / 2 : Math.max(16, Math.min(box.left, window.innerWidth - w - 16));
-  return <div className="spotlight" role="dialog" aria-modal="true" aria-label={spot.title}>
-    <div className="spotlight-catch" onClick={onClose} />
+  return <div className={"spotlight" + (total ? " touring" : "")} role="dialog" aria-modal="true" aria-label={spot.title} {...(total ? { onWheel: flip.onWheel, onTouchStart: flip.onTouchStart, onTouchEnd: flip.onTouchEnd } : {})}>
+    <div className="spotlight-catch" onClick={() => { if (!flip.swiped()) onClose(); }} />
     {box ? <div className="spotlight-hole" style={box} /> : <div className="spotlight-dim" />}
     <section ref={card} className="spotlight-card" style={{ top: cardTop, left: cardLeft, width: w }}>
       {total ? <span className="eyebrow">Tour · {step! + 1} of {total}</span> : <span className="eyebrow">Show me</span>}
       <h3>{spot.title}</h3><p>{spot.body}</p>
+      {total && <nav className="tour-dots" aria-label="Tour steps">{steps!.map((t, i) => <button key={t} aria-label={`Step ${i + 1}: ${t}`} title={t} aria-current={i === step ? "step" : undefined} className={i === step ? "on" : ""} onClick={() => onJump?.(i)} />)}</nav>}
+      {total && step === 0 && <small className="tour-hint">Swipe, scroll or use the arrow keys to move between steps.</small>}
       <div className="spotlight-actions">
         {total || !onNext ? <button className="text-button" onClick={onClose}>{total ? "End tour" : "Close"}</button> : <span />}
-        <span>{onBack && <button className="secondary" aria-label="Previous step" onClick={onBack}><ArrowLeft size={15} /></button>}
+        <span>{total ? <button className="secondary" aria-label="Previous step" disabled={!onBack} onClick={onBack}><ArrowLeft size={15} />Back</button> : onBack && <button className="secondary" aria-label="Previous step" onClick={onBack}><ArrowLeft size={15} /></button>}
           {onNext && <button className="primary" autoFocus onClick={onNext}>{!total ? "Got it" : step! + 1 === total ? "Done" : "Next"}<ArrowRight size={15} /></button>}</span>
       </div>
     </section>
@@ -118,28 +155,38 @@ export function Onboarding({ show, inNight, helpOpen, setHelpOpen, helpTab }: { 
     return () => window.removeEventListener("keydown", onKey);
   }, [helpOpen, setHelpOpen]);
 
+  const introNext = slide !== null && slide < SLIDES.length - 1 ? () => setSlide(slide + 1) : undefined;
+  const introBack = slide ? () => setSlide(slide - 1) : undefined;
+  const introFlip = useFlip(introNext, introBack);
+  useEffect(() => {
+    if (slide === null) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "ArrowRight") introNext?.(); if (e.key === "ArrowLeft") introBack?.(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   function closeIntro(thenTour = false) { track("intro-close", { slide: (slide ?? 0) + 1, then: thenTour ? "tour" : "explore" }); markSeen(); setSlide(null); if (thenTour) startTour(); else setHint(true); }
   function go(i: number) { show(TOUR[i]); setTour(i); }
   function startTour() { track("tour-start"); setHelpOpen(false); setHint(false); markSeen(); go(0); }
   function showMe(f: Spot) { track("show-me", { feature: f.title }); setHelpOpen(false); show(f); setSingle(f); }
 
   return <>
-    {slide !== null && <div className="intro-overlay" role="dialog" aria-modal="true" aria-label="Welcome to MuseumHop">
+    {slide !== null && <div className="intro-overlay" role="dialog" aria-modal="true" aria-label="Welcome to MuseumHop" onWheel={introFlip.onWheel} onTouchStart={introFlip.onTouchStart} onTouchEnd={introFlip.onTouchEnd}>
       <div className="intro-slide" key={slide}>
         {(() => { const S = SLIDES[slide], Icon = S.icon; return <>
           <span className="intro-icon"><Icon size={26} /></span>
           <span className="eyebrow">{S.eyebrow}</span><h2>{S.title}</h2><p>{S.body}</p></>; })()}
-        <div className="intro-dots" aria-hidden="true">{SLIDES.map((_, i) => <i key={i} className={i === slide ? "on" : ""} />)}</div>
+        <nav className="intro-dots" aria-label="Intro slides">{SLIDES.map((S, i) => <button key={i} aria-label={`Slide ${i + 1}: ${S.title}`} aria-current={i === slide ? "step" : undefined} className={i === slide ? "on" : ""} onClick={() => setSlide(i)} />)}</nav>
         <div className="intro-actions">
           {slide < SLIDES.length - 1
-            ? <><button className="text-button" onClick={() => closeIntro()}>Skip intro</button><button className="primary" autoFocus onClick={() => setSlide(slide + 1)}>Next<ArrowRight size={16} /></button></>
-            : <><button className="secondary" onClick={() => closeIntro()}>Start exploring</button><button className="primary" autoFocus onClick={() => closeIntro(true)}>Take the 30-second tour<ArrowRight size={16} /></button></>}
+            ? <><button className="text-button" onClick={() => closeIntro()}>Skip intro</button><span className="intro-steps">{introBack && <button className="secondary" aria-label="Previous slide" onClick={introBack}><ArrowLeft size={16} /></button>}<button className="primary" autoFocus onClick={introNext}>Next<ArrowRight size={16} /></button></span></>
+            : <><span className="intro-steps"><button className="secondary" aria-label="Previous slide" onClick={introBack}><ArrowLeft size={16} /></button><button className="secondary" onClick={() => closeIntro()}>Start exploring</button></span><button className="primary" autoFocus onClick={() => closeIntro(true)}>Take the 30-second tour<ArrowRight size={16} /></button></>}
         </div>
       </div>
     </div>}
 
     {hint && <Spotlight spot={{ target: ".help-button", title: "The intro lives here now", body: "Open it any time from the ? button, along with everything MuseumHop can do." }} onNext={() => setHint(false)} onClose={() => setHint(false)} />}
-    {tour !== null && <Spotlight spot={TOUR[tour]} step={tour} total={TOUR.length} onClose={() => { track("tour-end", { step: tour + 1, finished: false }); setTour(null); }}
+    {tour !== null && <Spotlight spot={TOUR[tour]} step={tour} steps={TOUR.map((t) => t.title)} onJump={go} onClose={() => { track("tour-end", { step: tour + 1, finished: false }); setTour(null); }}
       onBack={tour > 0 ? () => go(tour - 1) : undefined} onNext={() => (tour + 1 < TOUR.length ? go(tour + 1) : (track("tour-end", { step: tour + 1, finished: true }), setTour(null)))} />}
     {single && <Spotlight spot={single} onClose={() => setSingle(null)} />}
 
@@ -170,13 +217,15 @@ export function Onboarding({ show, inNight, helpOpen, setHelpOpen, helpTab }: { 
           <span className="eyebrow">Help</span>
           <h2>What can I do here?</h2>
           <p>Everything MuseumHop can do, including the parts that are easy to miss.</p>
-          <ul className="help-features">{FEATURES.map((f) => <li key={f.title}>
+          <button className="secondary" onClick={startTour}>Take the 30-second tour instead<ArrowRight size={15} /></button>
+          {GROUPS.map((g) => <section key={g} className="help-group"><h3>{g}</h3><ul className="help-features">{FEATURES.filter((f) => f.group === g).map((f) => <li key={f.title}>
             <div><b>{f.title}</b><span>{f.body}</span>{f.needsNight && !inNight && <small>Available once you’ve created or joined a night.</small>}</div>
             <button className="secondary" disabled={f.needsNight && !inNight} onClick={() => showMe(f)}>Show me</button>
           </li>)}
-            <li><div><b>Works without signal</b><span>Changes made offline wait on your phone and sync as soon as you’re back online.</span></div></li>
-          </ul>
-          <div className="help-keys"><span className="eyebrow">Keyboard</span><p><kbd>?</kbd>This help</p><p><kbd>Esc</kbd>Close any panel</p><p><kbd>←</kbd><kbd>→</kbd>Tour steps</p></div>
+            {g === "With your group" && <li><div><b>Works without signal</b><span>Changes made offline wait on your phone and sync as soon as you’re back online.</span></div></li>}
+            {g === "Your spot and your data" && <li><div><b>Report a problem</b><span>Something broken or missing? <a href={CONTACT}>Email the developer</a>.</span></div></li>}
+          </ul></section>)}
+          <div className="help-keys"><span className="eyebrow">Keyboard</span><p><kbd>?</kbd>This help</p><p><kbd>Esc</kbd>Close any panel</p><p><kbd>←</kbd><kbd>→</kbd>Tour steps (or swipe / scroll)</p></div>
         </div>}
       </aside>
     </div>}
