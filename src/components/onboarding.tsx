@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Compass, HelpCircle, Route, Sparkles, X } from "lucide-react";
 
 /** Which part of the app a spotlight step needs on screen (phones show one part at a time). */
@@ -20,8 +20,10 @@ const TOUR: Spot[] = [
   { view: "Explore", target: ".event-card .reaction-buttons", title: "React to activities", body: "Must, Up for it or Skip. Friends see your picks, and the Decide tab adds everyone’s reactions up." },
   { view: "Explore", target: ".event-card .card-bottom button", title: "Add a stop", body: "Adds the activity to the route picked under “Add stops to”: the group’s route, your own, or your crew’s." },
   { view: "Map", target: ".map-panel", title: "The map", body: "Each dot is a venue; bigger dots have more on. A ring groups venues that sit close together: tap it to zoom in. Coral numbers are your route in order." },
+  { view: "Map", target: ".rides-button", title: "Getting around", body: "Shows the free Museumnacht buses, boats, ferries, the museum tram and bike parking on the map. Tap a stop for its times, how it compares to walking, and to add the ride to your route." },
   { view: "Our night", aside: "suggested", target: "[data-tour=suggested]", title: "Suggested routes", body: "Four ready-made routes with a reason for every stop. Preview one, then use it as your group’s route." },
   { target: ".share-button", title: "Plan with friends", body: "Create your night and copy the invite link. Anyone with it can join; no account needed." },
+  { view: "Explore", target: ".data-note .footer-link", title: "Your data, your spot", body: "Only the people in your night can see it. Once you’re in, “Keep your spot” gives you a personal link (or emails it to you) that opens the night as you on any device. “Your data” says what’s stored and when it’s deleted." },
   { target: ".help-button", title: "Help lives here", body: "Replay this tour, or see everything MuseumHop can do, including the features that are easy to miss." },
 ];
 
@@ -39,11 +41,15 @@ const FEATURES: (Spot & { needsNight?: boolean })[] = [
   { view: "Our night", aside: "decide", target: ".itinerary-tabs", needsNight: true, title: "Decide together", body: "Everyone’s reactions in one table, a vote on route ideas, and a draft route from the top picks." },
   { view: "Our night", aside: "crews", target: ".itinerary-tabs", needsNight: true, title: "Split into crews", body: "Small groups with their own routes and meet-up points, all on one map." },
   { view: "Our night", aside: "activity", target: ".itinerary-tabs", needsNight: true, title: "See who changed what", body: "The Activity tab lists every change. Your own changes can be undone from the message that appears." },
+  { target: ".spot-banner, .profile", needsNight: true, title: "Keep your spot on any device", body: "Your personal link opens the night as you, with your reactions and routes, on a new phone, laptop or browser. Get it from “Keep your spot” or by tapping your name, and email it to yourself if you like: on a new device, “Get your link by email” sends a fresh one. Keep it private: it isn’t the invite link." },
+  { view: "Explore", target: ".data-note .footer-link", title: "See what’s stored about you", body: "Your data explains who can see your night, what MuseumHop keeps (no ads, analytics or tracking), and that everything is deleted 30 days after the night." },
 ];
 
 /** A dimmed page with one element cut out, and a card that explains it. */
 function Spotlight({ spot, step, total, onBack, onNext, onClose }: { spot: Spot; step?: number; total?: number; onBack?: () => void; onNext?: () => void; onClose: () => void }) {
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const card = useRef<HTMLElement>(null), [cardH, setCardH] = useState(200);
+  useLayoutEffect(() => { const h = card.current?.offsetHeight; if (h && h !== cardH) setCardH(h); });
   useLayoutEffect(() => {
     // Follows the target while open: smooth scrolling, layout shifts and resizes all move it.
     let last = "";
@@ -65,14 +71,14 @@ function Spotlight({ spot, step, total, onBack, onNext, onClose }: { spot: Spot;
 
   const pad = 8, w = Math.min(340, window.innerWidth - 32);
   const box = rect && { top: rect.top - pad, left: rect.left - pad, width: rect.width + pad * 2, height: Math.min(rect.height + pad * 2, window.innerHeight * 0.7) };
-  const below = !box || box.top + box.height + 200 < window.innerHeight;
+  const below = !box || box.top + box.height + cardH + 24 < window.innerHeight;
   const tall = !!box && box.height > window.innerHeight * 0.45; // no room beside it: sit at the bottom, over the target
-  const cardTop = !box ? window.innerHeight / 2 - 90 : tall ? window.innerHeight - 236 : below ? Math.min(box.top + box.height + 12, window.innerHeight - 200) : Math.max(12, box.top - 12 - 190);
+  const cardTop = !box ? window.innerHeight / 2 - 90 : tall ? window.innerHeight - cardH - 16 : below ? Math.min(box.top + box.height + 12, window.innerHeight - cardH - 12) : Math.max(12, box.top - 12 - cardH);
   const cardLeft = !box || tall ? (window.innerWidth - w) / 2 : Math.max(16, Math.min(box.left, window.innerWidth - w - 16));
   return <div className="spotlight" role="dialog" aria-modal="true" aria-label={spot.title}>
     <div className="spotlight-catch" onClick={onClose} />
     {box ? <div className="spotlight-hole" style={box} /> : <div className="spotlight-dim" />}
-    <section className="spotlight-card" style={{ top: cardTop, left: cardLeft, width: w }}>
+    <section ref={card} className="spotlight-card" style={{ top: cardTop, left: cardLeft, width: w }}>
       {total ? <span className="eyebrow">Tour · {step! + 1} of {total}</span> : <span className="eyebrow">Show me</span>}
       <h3>{spot.title}</h3><p>{spot.body}</p>
       <div className="spotlight-actions">
