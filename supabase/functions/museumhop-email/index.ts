@@ -12,7 +12,7 @@ const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const RESEND = Deno.env.get("RESEND_API_KEY") ?? "";
 const SECRET = Deno.env.get("MH_EMAIL_SECRET") ?? "";
 const ORIGIN = Deno.env.get("MH_ORIGIN") ?? "https://museumhop.arian-shafa.xyz";
-const FROM = Deno.env.get("MH_FROM") ?? "MuseumHop <links@mail.arian-shafa.xyz>";
+const FROM = Deno.env.get("MH_FROM") ?? "MuseumHop <links@news.arian-shafa.xyz>";
 const ALLOWED = [ORIGIN, "http://localhost:5190"];
 
 const admin = createClient(URL_, SERVICE, { auth: { persistSession: false } });
