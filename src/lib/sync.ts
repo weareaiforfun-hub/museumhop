@@ -107,9 +107,7 @@ export class NightSync {
         return this.userId;
       }
       if (link) { try { return await this.useLink(link); } catch (e) { this.linkProblem = (e as Error).message; } }
-      const { data: d, error } = await sb.auth.signInAnonymously();
-      if (error) throw new Error(error.message);
-      return (this.userId = d.user!.id);
+      return ""; // just looking around: no sign-in until creating or joining a night (see signIn)
     })();
     window.addEventListener("online", () => { this.reload(); this.flush(); });
     window.addEventListener("offline", () => this.setConn("offline"));
@@ -169,20 +167,29 @@ export class NightSync {
   savedPersonalLink() { try { return localStorage.getItem("na:me:" + this.userId) ?? ""; } catch { return ""; } }
   /** The night an invite token opens, if I'm already in it (e.g. on a device a personal link signed in). */
   async memberNight(token: string) {
-    await this.ready;
+    if (!(await this.ready)) return "";
     const { data } = await this.sb.rpc("na_member_night", { p_token: token });
     return (data as string | null) ?? "";
   }
 
   /* ---------- joining ---------- */
-  async createNight(name: string, displayName: string, color: string) {
+  /** The anonymous sign-in, made only when someone creates or joins a night, so visitors who only browse leave
+   *  nothing behind. Tagged with the app, because the daily cleanup removes MuseumHop sign-ins that never joined. */
+  private async signIn() {
     await this.ready;
+    if (this.userId) return this.userId;
+    const { data, error } = await this.sb.auth.signInAnonymously({ options: { data: { app: "museumhop" } } });
+    if (error) throw new Error(/rate limit/i.test(error.message) ? "Too many sign-ins from this network right now. Try again in a few minutes." : error.message);
+    return (this.userId = data.user!.id);
+  }
+  async createNight(name: string, displayName: string, color: string) {
+    await this.signIn();
     const { data, error } = await this.sb.rpc("na_create_night", { p_name: name, p_display_name: displayName, p_color: color });
     if (error) throw new Error(friendly(error.message));
     return data as string;
   }
   async joinNight(token: string, displayName: string, color: string) {
-    await this.ready;
+    await this.signIn();
     const { data, error } = await this.sb.rpc("na_join_night", { p_token: token, p_display_name: displayName, p_color: color });
     if (error) throw new Error(friendly(error.message));
     return data as string;

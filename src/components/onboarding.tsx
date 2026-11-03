@@ -186,6 +186,7 @@ function YourData() {
         <li>Your reactions, notes, routes, votes, crews and meet-up points</li>
         <li>A list of changes in your night, so your group sees who changed what</li>
       </ul>
+      <p><b>Just looking around?</b> Then MuseumHop keeps nothing about you. An anonymous sign-in (no name, email or password) is made only when you create or join a night.</p>
       <p><b>Not kept:</b> your phone number, contacts or location. No ads and no tracking cookies.</p>
       <p><b>Usage statistics:</b> a cookie-free counter run by MuseumHop’s maker (not Google or an ad network) notes which pages and features get used, for example “a route was adopted” or “the map was opened”, plus the browser, device type and country. It never receives names, notes, search text, invite links or personal links. Add <code>?notrack=1</code> to the address to switch it off in this browser.</p>
       <p><b>Your email</b>, only if you ask us to email your personal link: MuseumHop keeps a fingerprint of the address (to recognise it when you ask for a new link), never the address itself. Your group never sees it.</p>
@@ -193,7 +194,7 @@ function YourData() {
     </section>
     <section>
       <h3>How long</h3>
-      <p>Each night, with everything in it, is deleted automatically 30 days after its date. For Museumnacht 2026 that happens on 8 December 2026.</p>
+      <p>Each night, with everything in it, is deleted automatically 30 days after its date. For Museumnacht 2026 that happens on 8 December 2026. A sign-in that never ended up in a night is removed after a day.</p>
     </section>
     <section>
       <h3>Who sees what</h3>
