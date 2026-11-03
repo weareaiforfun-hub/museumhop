@@ -21,6 +21,47 @@
     <meta name="twitter:image" content="https://arian-shafa.xyz/og/museumhop.jpg" />
     <link rel="icon" href="./favicon.svg" />
     <title>MuseumHop · plan a museum night together</title>
+    <!-- Structured data for search engines and AI answers: what MuseumHop is (a free planner) and the event it's about.
+         The organiser is N8, not MuseumHop. Update the Event (or remove it) for the next edition. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebApplication",
+          "@id": "https://museumhop.arian-shafa.xyz/#app",
+          "name": "MuseumHop",
+          "url": "https://museumhop.arian-shafa.xyz/",
+          "description": "A free planner for Museumnacht Amsterdam: all 310 activities on one map, a shared route you plan with friends, walking times, and the free Museumnacht buses and boats. No account needed. Unofficial fan project.",
+          "applicationCategory": "TravelApplication",
+          "operatingSystem": "Any (web browser)",
+          "isAccessibleForFree": true,
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+          "image": "https://arian-shafa.xyz/og/museumhop.jpg",
+          "author": { "@type": "Person", "name": "Arian Shafa", "url": "https://arian-shafa.xyz" },
+          "about": { "@id": "https://museumhop.arian-shafa.xyz/#museumnacht-2026" }
+        },
+        {
+          "@type": "Event",
+          "@id": "https://museumhop.arian-shafa.xyz/#museumnacht-2026",
+          "name": "Museumnacht Amsterdam 2026",
+          "description": "One night when museums and venues across Amsterdam stay open late with special programmes, from 19:00 to 02:00.",
+          "startDate": "2026-11-07T19:00:00+01:00",
+          "endDate": "2026-11-08T02:00:00+01:00",
+          "eventStatus": "https://schema.org/EventScheduled",
+          "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+          "location": {
+            "@type": "Place",
+            "name": "Museums and venues across Amsterdam",
+            "address": { "@type": "PostalAddress", "addressLocality": "Amsterdam", "addressCountry": "NL" }
+          },
+          "image": "https://arian-shafa.xyz/og/museumhop.jpg",
+          "organizer": { "@type": "Organization", "name": "N8 (Museumnacht Amsterdam)", "url": "https://museumnacht.amsterdam" },
+          "sameAs": "https://museumnacht.amsterdam"
+        }
+      ]
+    }
+    </script>
     <!-- Self-hosted, cookie-free analytics (stats.arian-shafa.xyz). ?notrack=1 excludes your own browser. The address
        fragment (invite tokens, personal links) is never sent: data-exclude-hash. No session recording. -->
   <script>(()=>{const q=new URLSearchParams(location.search).get('notrack');if(q===null)return;try{q==='0'?localStorage.removeItem('umami.disabled'):localStorage.setItem('umami.disabled','1');}catch(e){}const u=new URL(location.href);u.searchParams.delete('notrack');history.replaceState(history.state,'',u.pathname+u.search+u.hash);})();</script>
