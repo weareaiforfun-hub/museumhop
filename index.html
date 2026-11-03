@@ -7,6 +7,78 @@
     <meta name="description" content="Explore 310 activities and 69 museums, react to your friends' picks, and plan a shared Amsterdam Museum Night route." />
     <link rel="icon" href="./favicon.svg" />
     <title>MuseumHop · plan a museum night together</title>
+    <!-- Self-hosted, cookie-free analytics (stats.arian-shafa.xyz). ?notrack=1 excludes your own browser. The address
+       fragment (invite tokens, personal links) is never sent: data-exclude-hash. No session recording. -->
+  <script>(()=>{const q=new URLSearchParams(location.search).get('notrack');if(q===null)return;try{q==='0'?localStorage.removeItem('umami.disabled'):localStorage.setItem('umami.disabled','1');}catch(e){}const u=new URL(location.href);u.searchParams.delete('notrack');history.replaceState(history.state,'',u.pathname+u.search+u.hash);})();</script>
+  <script defer src="https://stats.arian-shafa.xyz/script.js" data-website-id="60baa63a-e856-458d-bccc-7700537a7803" data-domains="museumhop.arian-shafa.xyz" data-exclude-search="true" data-exclude-hash="true" data-performance="true"></script>
+  <script>(() => {
+const T = (n, d) => { try { window.umami && window.umami.track(n, d); } catch (e) {} };
+const txt = el => (el && (el.getAttribute('data-track') || el.getAttribute('aria-label') || el.textContent) || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+const page = () => location.pathname;
+
+// Clicks, plus rage clicks (3+ on the same element within a second)
+let lastEl = null, lastT = 0, streak = 0;
+document.addEventListener('click', e => {
+  const el = e.target.closest('button, a, [role=button], [role=tab], [role=menuitem]');
+  if (!el || el.closest('[data-umami-ignore]')) return;
+  const now = Date.now();
+  if (el === lastEl && now - lastT < 1000) { if (++streak === 3) T('rage-click', { label: txt(el) || 'icon', page: page() }); } else streak = 1;
+  const dup = el === lastEl && now - lastT < 400; lastEl = el; lastT = now;
+  if (dup) return;
+  if (el.tagName === 'A' && el.host && el.host !== location.host) return T('outbound-click', { label: txt(el), host: el.host, page: page() });
+  T('button-click', { label: txt(el) || 'icon', page: page() });
+}, true);
+
+// Form submissions and copied text (what people take away)
+document.addEventListener('submit', e => { const f = e.target; T('form-submit', { form: f.getAttribute('name') || f.id || txt(f.querySelector('button[type=submit], button')) || 'form', page: page() }); }, true);
+document.addEventListener('copy', () => T('copy-text', { page: page() }));
+
+// Scroll depth per page: 25 / 50 / 75 / 100 %
+const marks = [25, 50, 75, 100];
+let hit = new Set();
+addEventListener('scroll', () => {
+  const d = document.documentElement, pct = (scrollY + innerHeight) / d.scrollHeight * 100;
+  marks.forEach(m => { if (pct >= m - 1 && !hit.has(m)) { hit.add(m); T('scroll-depth', { percent: m, page: page() }); } });
+}, { passive: true });
+
+// Engaged time per page: visible and active (input in the last 30 s), sent on page change or when the tab is hidden
+let active = 0, lastTick = Date.now(), lastInput = Date.now(), lastAct = 0, cur = page();
+const tick = () => { const now = Date.now(); if (document.visibilityState === 'visible' && now - lastInput < 30000) active += Math.min(now - lastTick, 30000); lastTick = now; };
+const flush = p => {
+  tick();
+  if (active > 3000) { const s = Math.round(active / 1000); T('engaged-time', { seconds: s, page: p, bucket: s < 15 ? '<15s' : s < 60 ? '15-60s' : s < 180 ? '1-3m' : s < 600 ? '3-10m' : '10m+' }); }
+  active = 0;
+};
+['pointerdown', 'keydown', 'scroll', 'mousemove', 'touchstart'].forEach(t => addEventListener(t, () => { tick(); lastInput = lastAct = Date.now(); }, { passive: true, capture: true }));
+setInterval(tick, 5000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(cur); else { lastTick = lastInput = Date.now(); } });
+const onRoute = () => { const p = page(); if (p === cur) return; flush(cur); cur = p; hit = new Set(); };
+['pushState', 'replaceState'].forEach(k => { const o = history[k]; history[k] = function () { const r = o.apply(this, arguments); setTimeout(onRoute); return r; }; });
+addEventListener('popstate', onRoute);
+
+// Outcomes of backend calls (Supabase functions and sign-in): which feature, success or failure, how long it took. No request content is read.
+if (window.fetch) {
+  const f = window.fetch;
+  window.fetch = function (input, init) {
+    const url = String((input && input.url) || input || '');
+    const m = url.match(/\/functions\/v1\/([\w-]+)/) || url.match(/\/auth\/v1\/(signup|otp|token|recover|magiclink)/);
+    const p = f.apply(this, arguments);
+    if (m) {
+      const fn = m[0].includes('/auth/') ? 'auth-' + m[1] : m[1], t0 = Date.now(), trigger = t0 - lastAct < 5000 ? 'user' : 'auto';
+      let action; try { const b = init && typeof init.body === 'string' && JSON.parse(init.body); const a = b && (b.action || b.mode || b.type); if (typeof a === 'string' && a.length < 30) action = a; } catch (e) {}
+      const done = (ok, status) => { if (fn !== 'auth-token' || trigger === 'user') T('feature-use', { feature: fn, ...(action ? { action } : {}), ok, status, trigger, seconds: Math.round((Date.now() - t0) / 100) / 10, page: page() }); };
+      p.then(r => done(r.ok, r.status), () => done(false, 0));
+    }
+    return p;
+  };
+}
+
+// Front-end errors visitors run into (first 5 per visit)
+let errs = 0;
+const err = m => { if (errs++ < 5) T('js-error', { message: String(m || 'unknown').slice(0, 120), page: page() }); };
+addEventListener('error', e => { if (e.message) err(e.message); });
+addEventListener('unhandledrejection', e => err(e.reason && (e.reason.message || e.reason)));
+})();</script>
   </head>
   <body>
     <div id="root"></div>

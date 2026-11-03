@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { track } from "../lib/track";
 import { ArrowLeft, ArrowRight, Compass, HelpCircle, Route, Sparkles, X } from "lucide-react";
 
 /** Which part of the app a spotlight step needs on screen (phones show one part at a time). */
@@ -42,7 +43,7 @@ const FEATURES: (Spot & { needsNight?: boolean })[] = [
   { view: "Our night", aside: "crews", target: ".itinerary-tabs", needsNight: true, title: "Split into crews", body: "Small groups with their own routes and meet-up points, all on one map." },
   { view: "Our night", aside: "activity", target: ".itinerary-tabs", needsNight: true, title: "See who changed what", body: "The Activity tab lists every change. Your own changes can be undone from the message that appears." },
   { target: ".spot-banner, .profile", needsNight: true, title: "Keep your spot on any device", body: "Your personal link opens the night as you, with your reactions and routes, on a new phone, laptop or browser. Get it from “Keep your spot” or by tapping your name, and email it to yourself if you like: on a new device, “Get your link by email” sends a fresh one. Keep it private: it isn’t the invite link." },
-  { view: "Explore", target: ".data-note .footer-link", title: "See what’s stored about you", body: "Your data explains who can see your night, what MuseumHop keeps (no ads, analytics or tracking), and that everything is deleted 30 days after the night." },
+  { view: "Explore", target: ".data-note .footer-link", title: "See what’s stored about you", body: "Your data explains who can see your night, what MuseumHop keeps (no ads or tracking cookies; only cookie-free usage counts), and that everything is deleted 30 days after the night." },
 ];
 
 /** A dimmed page with one element cut out, and a card that explains it. */
@@ -109,10 +110,10 @@ export function Onboarding({ show, inNight, helpOpen, setHelpOpen, helpTab }: { 
     return () => window.removeEventListener("keydown", onKey);
   }, [helpOpen, setHelpOpen]);
 
-  function closeIntro(thenTour = false) { markSeen(); setSlide(null); if (thenTour) startTour(); else setHint(true); }
+  function closeIntro(thenTour = false) { track("intro-close", { slide: (slide ?? 0) + 1, then: thenTour ? "tour" : "explore" }); markSeen(); setSlide(null); if (thenTour) startTour(); else setHint(true); }
   function go(i: number) { show(TOUR[i]); setTour(i); }
-  function startTour() { setHelpOpen(false); setHint(false); markSeen(); go(0); }
-  function showMe(f: Spot) { setHelpOpen(false); show(f); setSingle(f); }
+  function startTour() { track("tour-start"); setHelpOpen(false); setHint(false); markSeen(); go(0); }
+  function showMe(f: Spot) { track("show-me", { feature: f.title }); setHelpOpen(false); show(f); setSingle(f); }
 
   return <>
     {slide !== null && <div className="intro-overlay" role="dialog" aria-modal="true" aria-label="Welcome to MuseumHop">
@@ -130,8 +131,8 @@ export function Onboarding({ show, inNight, helpOpen, setHelpOpen, helpTab }: { 
     </div>}
 
     {hint && <Spotlight spot={{ target: ".help-button", title: "The intro lives here now", body: "Open it any time from the ? button, along with everything MuseumHop can do." }} onNext={() => setHint(false)} onClose={() => setHint(false)} />}
-    {tour !== null && <Spotlight spot={TOUR[tour]} step={tour} total={TOUR.length} onClose={() => setTour(null)}
-      onBack={tour > 0 ? () => go(tour - 1) : undefined} onNext={() => (tour + 1 < TOUR.length ? go(tour + 1) : setTour(null))} />}
+    {tour !== null && <Spotlight spot={TOUR[tour]} step={tour} total={TOUR.length} onClose={() => { track("tour-end", { step: tour + 1, finished: false }); setTour(null); }}
+      onBack={tour > 0 ? () => go(tour - 1) : undefined} onNext={() => (tour + 1 < TOUR.length ? go(tour + 1) : (track("tour-end", { step: tour + 1, finished: true }), setTour(null)))} />}
     {single && <Spotlight spot={single} onClose={() => setSingle(null)} />}
 
     {helpOpen && <div className="modal-backdrop help-backdrop" onClick={() => setHelpOpen(false)}>
@@ -185,7 +186,8 @@ function YourData() {
         <li>Your reactions, notes, routes, votes, crews and meet-up points</li>
         <li>A list of changes in your night, so your group sees who changed what</li>
       </ul>
-      <p><b>Not kept:</b> your phone number, contacts or location. No ads, no analytics, no tracking cookies.</p>
+      <p><b>Not kept:</b> your phone number, contacts or location. No ads and no tracking cookies.</p>
+      <p><b>Usage statistics:</b> a cookie-free counter run by MuseumHop’s maker (not Google or an ad network) notes which pages and features get used, for example “a route was adopted” or “the map was opened”, plus the browser, device type and country. It never receives names, notes, search text, invite links or personal links. Add <code>?notrack=1</code> to the address to switch it off in this browser.</p>
       <p><b>Your email</b>, only if you ask us to email your personal link: MuseumHop keeps a fingerprint of the address (to recognise it when you ask for a new link), never the address itself. Your group never sees it.</p>
       <p><b>In this browser:</b> who you are, your nights and changes waiting to sync. Clearing your browser removes them, which is why a personal link helps.</p>
     </section>

@@ -17,6 +17,7 @@ import { GettingAround, RideCard } from "./components/getting-around";
 import { MODES } from "./data/transport";
 import exampleIdeas from "./data/route-ideas.json";
 import { Decide, REACTIONS, ReactionButtons, type ReactionKey } from "./components/decide";
+import { track } from "./lib/track";
 
 type Aside = "route" | "personal" | "ideas" | "suggested" | "decide" | "crews" | "activity";
 
@@ -142,6 +143,24 @@ export default function App() {
     if (nav && getComputedStyle(nav).display !== "none" && nav.getBoundingClientRect().top < 0) window.scrollTo({ top: window.scrollY + nav.getBoundingClientRect().top });
   }, [view]);
 
+  /* ---------- usage stats: which parts get used (see lib/track.ts) ---------- */
+  const firstRender = useRef(true);
+  useEffect(() => { if (!firstRender.current) track("view", { name: view }); }, [view]);
+  useEffect(() => { if (!firstRender.current) track("panel", { name: asideMode }); }, [asideMode]);
+  useEffect(() => { if (!firstRender.current) track("category", { name: category }); }, [category]);
+  useEffect(() => { if (!firstRender.current && tag !== "All types") track("type-filter"); }, [tag]);
+  useEffect(() => { if (!firstRender.current && suggestedOnly) track("picks-filter", { person: personFilter === "all" ? "everyone" : "one" }); }, [suggestedOnly, personFilter]);
+  useEffect(() => { if (!firstRender.current) track("route-view", { name: routeView }); }, [routeView]);
+  useEffect(() => { if (ridesOpen) track("getting-around"); }, [ridesOpen]);
+  useEffect(() => { if (ride) track("ride-select", { mode: ride.mode }); }, [ride?.mode, ride?.stop]);
+  useEffect(() => { if (previewId) track("route-preview", { kind: SUGGESTED.some((p) => p.id === previewId) ? "suggested" : "idea" }); }, [previewId]);
+  useEffect(() => { if (selected) track("details-open", { kind: selected.id.startsWith("museum:") ? "museum" : "activity" }); }, [selected?.id]);
+  useEffect(() => { if (helpOpen) track("help-open", { tab: helpTab }); }, [helpOpen]);
+  useEffect(() => { if (spotOpen) track("keep-spot-open"); }, [spotOpen]);
+  useEffect(() => { if (!query.trim()) return; const t = setTimeout(() => track("search"), 1500); return () => clearTimeout(t); }, [query]);
+  useEffect(() => { firstRender.current = false; }, []);
+  useEffect(() => { if (identity) track("in-night", { role: identity.role, people: realMembers.length, link: hasLink }); }, [identity?.id]);
+
   /* ---------- changes ---------- */
   /** Shows ops at once and saves them; with a label, offers to undo. */
   function run(ops: Op[], label?: string) {
@@ -154,7 +173,7 @@ export default function App() {
 
   function addShared(id: string) { if (night?.shared) run(addStopOps(night.shared, route, id), `Added ${title(id)} to our route`); }
   function addCrew(id: string) { if (crewRoute) run(addStopOps(crewRoute, crewStops, id), `Added ${title(id)} to ${myCrewName}’s route`); }
-  function addTo(id: string) { if (target === "personal") addPersonal(id); else if (target === "crew") addCrew(id); else addShared(id); }
+  function addTo(id: string) { track("stop-add", { route: target }); if (target === "personal") addPersonal(id); else if (target === "crew") addCrew(id); else addShared(id); }
   function addPersonal(id: string) {
     if (!night || !identity) { setNameDialog(true); return; }
     if (night.mine) run(addStopOps(night.mine, myRoute, id), `Added ${title(id)} to your route`);
@@ -164,6 +183,7 @@ export default function App() {
   function proposeMine(stops: UiStop[]) {
     if (!night || !identity) { setNameDialog(true); return; }
     const clear: Op[] = myRoute.map((s) => ({ t: "delete", table: "na_stops", id: s.rowId! }));
+    track("route-idea-save", { stops: stops.length });
     run([...clear, ...personalRouteOps(identity.night_id, userId, night.mine, night.mine?.title || identity.display_name + "’s route", stops, []).ops], "Saved as your route idea");
     setToast("Saved as your route idea. Friends can compare it under Route ideas.");
   }
@@ -171,12 +191,14 @@ export default function App() {
   function react(eventId: string, reaction: ReactionKey | null, withNote?: string) {
     if (!night || !identity) { setNameDialog(true); return; }
     const mine = data!.na_reactions.find((r) => r.user_id === userId && r.event_id === eventId);
+    track("reaction", { kind: reaction ?? "clear", note: !!withNote });
     if (!reaction) { if (mine) run([{ t: "delete", table: "na_reactions", id: mine.id }]); return; }
     run(mine ? [{ t: "update", table: "na_reactions", id: mine.id, patch: { reaction, note: withNote ?? mine.note, updated_at: new Date().toISOString() } }]
       : [{ t: "insert", table: "na_reactions", row: { id: newId(), night_id: identity.night_id, user_id: userId, event_id: eventId, reaction, note: withNote ?? "" } }]);
   }
   function vote(routeId: string | null) {
     if (!identity) { setNameDialog(true); return; }
+    track("idea-vote", { cleared: !routeId });
     const mine = data!.na_idea_votes.find((v) => v.user_id === userId);
     run(!routeId ? (mine ? [{ t: "delete", table: "na_idea_votes", id: mine.id }] : [])
       : mine ? [{ t: "update", table: "na_idea_votes", id: mine.id, patch: { route_id: routeId } }]
@@ -185,7 +207,7 @@ export default function App() {
   async function adoptIdea(id: string) {
     if (!identity) { setNameDialog(true); return; }
     setBusy(true);
-    try { await sync!.rpc("na_adopt_route", { p_route: id }); setPreviewId(null); setAsideMode("route"); setFit((f) => f + 1); setError(""); setToast("Your group route is ready. Everyone can adjust it."); }
+    try { await sync!.rpc("na_adopt_route", { p_route: id }); track("route-adopt", { from: "idea" }); setPreviewId(null); setAsideMode("route"); setFit((f) => f + 1); setError(""); setToast("Your group route is ready. Everyone can adjust it."); }
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
@@ -195,6 +217,7 @@ export default function App() {
     if (!idea) return;
     if (!identity || !night?.shared) { setPendingSuggestion(id); setNameDialog(true); return; }
     if (!canEditShared) { setError("Viewers can’t change the shared route. Ask the organiser for a planner link."); return; }
+    track("route-adopt", { from: "suggested", route: idea.id });
     run(replaceRouteOps(night.shared, route, idea.route), `Using “${idea.title}” as our route`);
     setPreviewId(null); setAsideMode("route"); setTarget("shared"); setFit((f) => f + 1);
   }
@@ -214,6 +237,7 @@ export default function App() {
     setPref("na:name", name.trim()); setPref("na:color", color);
     try {
       if (identity && nameDialog) {
+        track("name-change");
         run([{ t: "update", table: "na_members", id: identity.id, patch: { display_name: name.trim(), color } }]);
         setNameDialog(false);
         return;
@@ -225,6 +249,7 @@ export default function App() {
       setInvite(token);
       if (id === nightId) await sync.reload(); else setNightId(id);
       setNameDialog(false); setAsideMode("personal"); setTarget("personal"); setPreviewId(null);
+      track(invite ? "night-join" : "night-create", { via: pendingSuggestion ? "suggested" : "start" });
       setToast(invite ? "You joined the night." : "Your night is ready. Invite your friends!");
       setPref("na:spot-asked:" + sync.userId, "1"); setSpotOpen(true);
     } catch (e) { setError((e as Error).message); }
@@ -232,7 +257,7 @@ export default function App() {
   }
   async function share() {
     if (!invite) { setNameDialog(true); return; }
-    try { await navigator.clipboard.writeText(location.origin + location.pathname + "#night=" + invite); setToast("Invite link copied. Anyone with it can join and edit."); }
+    try { await navigator.clipboard.writeText(location.origin + location.pathname + "#night=" + invite); setToast("Invite link copied. Anyone with it can join and edit."); track("invite-copy"); }
     catch { setToast("Copy the invitation from your browser address bar."); }
   }
 
@@ -277,7 +302,7 @@ export default function App() {
       <div className="event-date"><span className="live-dot" />SAT 7 NOV 2026<span className="date-divider" />19:00 — 02:00</div>
       <div className="header-actions">
         {invite && !identity && !loading && <button className="secondary join-button" onClick={() => setNameDialog(true)}>Join this night</button>}
-        {identity && <button className="profile" onClick={() => { setName(identity.display_name); setColor(identity.color); setNameDialog(true); }}><span className="avatar" style={{ background: identity.color, color: "#fff" }}>{initials(identity.display_name)}</span><span>{identity.display_name}</span></button>}
+        {identity && <button className="profile" data-track="Your name" onClick={() => { setName(identity.display_name); setColor(identity.color); setNameDialog(true); }}><span className="avatar" style={{ background: identity.color, color: "#fff" }}>{initials(identity.display_name)}</span><span>{identity.display_name}</span></button>}
         <HelpButton onClick={() => { setHelpTab("what"); setHelpOpen(true); }} />
         <button className="primary share-button" aria-label={invite ? "Invite friends" : "Plan with friends"} onClick={share}><Share2 size={16} /><span>{invite ? "Invite friends" : "Plan with friends"}</span></button>
       </div>

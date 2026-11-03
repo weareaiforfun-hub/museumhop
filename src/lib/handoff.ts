@@ -1,3 +1,4 @@
+import { track } from "./track";
 /**
  * Moving house: the site used to live at museumhopper.arian-shafa.xyz. A small page there forwards visitors here
  * with their browser storage (sign-in, known nights, name, offline queue) in `#handoff=` so nobody loses their place.
@@ -18,7 +19,7 @@ function receive() {
   try {
     localStorage.setItem(PULLED, "1");
     // Never overwrite a sign-in this browser already has here: an older copy of a rotated session would sign it out.
-    if (localStorage.getItem(AUTH)) return;
+    if (localStorage.getItem(AUTH)) { track("handoff", { result: "kept-existing" }); return; }
     const json = decodeURIComponent(escape(atob(packed.replace(/-/g, "+").replace(/_/g, "/"))));
     const entries = JSON.parse(json) as Record<string, string>;
     for (const [key, value] of Object.entries(entries)) {
@@ -26,6 +27,7 @@ function receive() {
       if (key.startsWith(OLD_AUTH)) localStorage.setItem(AUTH + key.slice(OLD_AUTH.length), value);
       else if (key.startsWith("na:") && localStorage.getItem(key) === null) localStorage.setItem(key, value);
     }
+    track("handoff", { result: Object.keys(entries).some((k) => k.startsWith(OLD_AUTH)) ? "signed-in" : "settings-only" });
   } catch { /* a damaged link or private mode: start fresh; the invite link in the address still works */ }
 }
 

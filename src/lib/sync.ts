@@ -1,3 +1,4 @@
+import { track } from "./track";
 import { createClient, type RealtimeChannel, type SupabaseClient } from "@supabase/supabase-js";
 import { leaving } from "./handoff";
 
@@ -128,6 +129,7 @@ export class NightSync {
     const { data, error } = await this.sb.auth.signInWithPassword({ email: linkEmail(link.uid), password: link.secret });
     if (error || !data.user) throw new Error("This personal link doesn’t work anymore: a newer one replaced it. Open your newest link, or ask the organiser to invite you again.");
     this.userId = data.user.id;
+    track("personal-link-used");
     const token = new URLSearchParams(location.hash.slice(1)).get("night");
     try {
       localStorage.removeItem("na:nights"); // belonged to whoever this browser was before
@@ -141,6 +143,7 @@ export class NightSync {
     const { data, error } = await this.sb.rpc("na_personal_link");
     if (error) throw new Error(friendly(error.message));
     const link = `${location.origin}${location.pathname}#night=${token}&me=${this.userId}.${data}`;
+    track("personal-link-made");
     try { localStorage.setItem("na:me:" + this.userId, link); } catch { /* shown once; can't be shown again later */ }
     return link;
   }
