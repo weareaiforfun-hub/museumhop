@@ -1,6 +1,5 @@
 import { track } from "./track";
 import { createClient, type RealtimeChannel, type SupabaseClient } from "@supabase/supabase-js";
-import { leaving } from "./handoff";
 
 /* Rows exactly as they are stored in Supabase (to-one project, na_ tables). */
 export type Night = { id: string; name: string; event_date: string; vote_deadline: string | null; route_locked_at: string | null; created_by: string };
@@ -89,12 +88,12 @@ export class NightSync {
       const link = takeLink();
       const { data } = await sb.auth.getSession();
       if (data.session) {
-        // A sign-in removed on the server (e.g. a duplicate cleaned up) stays in storage; drop it and look again,
-        // which on this address also collects an older sign-in from the previous address. Offline errors don't count.
+        // A sign-in removed on the server (e.g. a duplicate cleaned up) stays in storage; drop it and start fresh.
+        // Offline errors don't count.
         const { error: gone } = await sb.auth.getUser();
         if (gone && (gone.code === "user_not_found" || /user .*(does not exist|not found)/i.test(gone.message))) {
           await sb.auth.signOut({ scope: "local" });
-          try { localStorage.removeItem("mh:pulled"); localStorage.removeItem("na:nights"); } catch { /* private mode */ }
+          try { localStorage.removeItem("na:nights"); } catch { /* private mode */ }
           location.reload();
           return new Promise<string>(() => {});
         }
@@ -367,5 +366,5 @@ export class NightSync {
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
-export const sync = url && key && !leaving ? new NightSync(url, key) : null;
+export const sync = url && key ? new NightSync(url, key) : null;
 if (import.meta.env.DEV) (window as unknown as { __sync: unknown }).__sync = sync;
