@@ -95,7 +95,24 @@ addEventListener('unhandledrejection', e => err(e.reason && (e.reason.message ||
 })();</script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Readable without JavaScript, for page readers, search engines and link previews. React replaces it on start. -->
+    <div id="root">
+      <main style="max-width:640px;margin:0 auto;padding:48px 16px;font:16px/1.6 system-ui,-apple-system,'Segoe UI',sans-serif;color:#183b35">
+        <h1>MuseumHop: plan Museumnacht Amsterdam together</h1>
+        <p>MuseumHop is a free planner for Museumnacht Amsterdam on Saturday 7 November 2026, from 19:00 to 02:00. Every activity, museum and food stop of the night is on one list and one map.</p>
+        <h2>What you can do</h2>
+        <ul>
+          <li>Explore all 310 activities at 69 museums, filtered by type: music, talks, workshops, tours, film, performance, installations and more.</li>
+          <li>Pick your favourites and build your own route, or one shared route with your friends.</li>
+          <li>React to your friends' picks and see what the group wants to do.</li>
+          <li>See walking times between stops and the free buses and boats of the night.</li>
+          <li>Start from one of four suggested routes if you don't know where to begin.</li>
+        </ul>
+        <h2>How it works</h2>
+        <p>No account needed: your name is remembered in this browser. Start a night and share its link; everyone with the link can view the plans and edit the shared route. Already in a night on another device? Get your link by email.</p>
+        <p>A project by <a href="https://arian-shafa.xyz">Arian Shafa</a>.</p>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
