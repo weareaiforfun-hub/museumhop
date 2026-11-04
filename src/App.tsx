@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Bus, Check, KeyRound, ChevronRight, Clock, Compass, Mail, Map as MapIcon, MapPin, Moon, Plus, Route, Search, Share2, Sparkles, Star, Utensils, Undo2, X } from "lucide-react";
+import { ArrowUpRight, Bus, Check, Navigation, NavigationOff, KeyRound, ChevronRight, Clock, Compass, Mail, Map as MapIcon, MapPin, Moon, Plus, Route, Search, Share2, Sparkles, Star, Utensils, Undo2, X } from "lucide-react";
 import { activities, byId, byMuseum, COLORS, FOOD, initials, items, minute, warnings, type Item, type UiStop } from "./lib/catalogue";
 import { addStopOps, derive, personalRouteOps, replaceRouteOps, rescheduleOps, useSync } from "./lib/night";
 import { newId, sync, type Op } from "./lib/sync";
@@ -19,6 +19,9 @@ import { MODES } from "./data/transport";
 import exampleIdeas from "./data/route-ideas.json";
 import { Decide, REACTIONS, ReactionButtons, type ReactionKey } from "./components/decide";
 import { track } from "./lib/track";
+import { liveStatus, mapsNext, nextStop, useLocation, walkFrom } from "./lib/location";
+import { GoogleMapsSheet } from "./components/google-maps";
+import { ActivityInfo } from "./components/activity-info";
 
 type Aside = "route" | "personal" | "ideas" | "suggested" | "decide" | "crews" | "activity";
 
@@ -41,6 +44,7 @@ export default function App() {
   const [category, setCategory] = useState("Activities"), [query, setQuery] = useState(""), [tag, setTag] = useState("All types"), [view, setView] = useState("Explore"), [suggestedOnly, setSuggestedOnly] = useState(false), [personFilter, setPersonFilter] = useState("all");
   const [invite, setInvite] = useState(""), [nightId, setNightId] = useState(""), [resolving, setResolving] = useState(false);
   const [spotOpen, setSpotOpen] = useState(false), [switchLink, setSwitchLink] = useState(false), [, setLinkMade] = useState(0);
+  const loc = useLocation(), [locateTick, setLocateTick] = useState(0), [gmapsOpen, setGmapsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false), [emailReady, setEmailReady] = useState(false), [recoverOpen, setRecoverOpen] = useState(false);
   useEffect(() => { sync?.emailReady().then(setEmailReady); }, []);
   const [name, setName] = useState(pref("na:name")), [color, setColor] = useState(pref("na:color") || COLORS[Math.floor(Math.random() * COLORS.length)]);
@@ -279,9 +283,18 @@ export default function App() {
   const lines: MapLine[] = useMemo(() => asideMode === "crews" && !previewStops && night && data?.na_crews.length
     ? data.na_crews.map((c) => ({ stops: night.stopsOf(night.crewRoute(c.id)?.id), color: c.color, numbered: c.id === night.myCrewId }))
     : [{ stops: mapRoute, color: "#de654b", numbered: true }], [mapRoute, asideMode, previewStops, night, data?.na_crews]);
-  const viewToggle = <div className="view-toggle" role="group" aria-label="Route view">
-    {(["list", "timeline"] as const).map((v) => <button key={v} aria-pressed={routeView === v} className={routeView === v ? "on" : ""} onClick={() => { setRouteView(v); setPreviewStops(null); }}>{v === "list" ? "List" : "Timeline"}</button>)}
+  // The route the Google Maps button opens: whichever one the side panel shows.
+  const gmaps = asideMode === "personal" ? { stops: myRoute, title: night?.mine?.title || "My route" } : asideMode === "crews" ? { stops: crewStops, title: (myCrewName ?? "Crew") + "’s route" } : { stops: route, title: "Our route" };
+  const viewToggle = <div className="route-tools">
+    <div className="view-toggle" role="group" aria-label="Route view">
+      {(["list", "timeline"] as const).map((v) => <button key={v} aria-pressed={routeView === v} className={routeView === v ? "on" : ""} onClick={() => { setRouteView(v); setPreviewStops(null); }}>{v === "list" ? "List" : "Timeline"}</button>)}
+    </div>
+    {gmaps.stops.length > 0 && <button className="gmaps-button" onClick={() => setGmapsOpen(true)}><MapPin size={13} />Google Maps</button>}
   </div>;
+  // On the map: the next stop of the route shown, and how far it is from you.
+  const nextIndex = loc.spot && !previewStops && !proposal ? nextStop(mapRoute) : -1;
+  const nextItem = nextIndex >= 0 ? byId.get(mapRoute[nextIndex].id) : undefined;
+  const nextWalk = nextItem && loc.spot ? walkFrom(loc.spot, nextItem.museumId) : null;
   const loading = (resolving || !!nightId) && !night?.members.length && status?.conn !== "offline";
 
   const joinForm = (
@@ -344,10 +357,28 @@ export default function App() {
       </section>
 
       <section className="map-panel" aria-label="Amsterdam map">
-        <MapView transport={{ modes: shownModes, selected: ride, onSelect: (mode, stop) => setRide({ mode, stop }) }} visible={ridesOpen && hideVenues ? [] : proposal ? proposal.route.map((s) => byId.get(s.id)!).filter(Boolean) : asideMode === "personal" && myRoute.length ? myRoute.map((s) => byId.get(s.id)!).filter(Boolean) : filtered} lines={lines} onSelect={pick} focus={focus} fit={fit} />
+        <MapView transport={{ modes: shownModes, selected: ride, onSelect: (mode, stop) => setRide({ mode, stop }) }} visible={ridesOpen && hideVenues ? [] : proposal ? proposal.route.map((s) => byId.get(s.id)!).filter(Boolean) : asideMode === "personal" && myRoute.length ? myRoute.map((s) => byId.get(s.id)!).filter(Boolean) : filtered} lines={lines} onSelect={pick} focus={focus} fit={fit} me={loc.spot} locate={locateTick} />
         <div className="map-caption"><span className="live-dot" />{previewStops ? "ROUTE PREVIEW" : proposal ? "ROUTE IDEA PREVIEW" : asideMode === "personal" && myRoute.length ? "MY PERSONAL ROUTE" : asideMode === "crews" && data?.na_crews.length ? "CREW ROUTES" : "AMSTERDAM AT NIGHT"}</div>
         {proposal && <div className="preview-banner"><span>{proposal.title}</span><button onClick={() => setPreviewId(null)} aria-label="Close route preview"><X size={15} /></button></div>}
         <button className={"rides-button" + (ridesOpen ? " on" : "")} aria-pressed={ridesOpen} onClick={() => { setRidesOpen(!ridesOpen); setRide(null); }}><Bus size={16} />Getting around</button>
+        <button className={"locate-button" + (loc.status === "on" ? " on" : loc.status === "blocked" ? " blocked" : "")} aria-pressed={loc.status === "on"}
+          aria-label={loc.status === "on" ? "Centre the map on me" : "Show where I am"} title={loc.status === "on" ? "Centre on me" : "Show where I am"}
+          onClick={() => { setLocateTick((n) => n + 1); if (loc.status !== "on") { track("locate", { from: loc.status }); loc.toggle(); } }}>{loc.status === "blocked" ? <NavigationOff size={18} /> : <Navigation size={18} />}</button>
+        {loc.status === "on" && <button className="locate-off" onClick={loc.toggle}>Hide my location</button>}
+        {loc.status === "waiting" && <p className="locate-note" role="status">Finding you…</p>}
+        {loc.status === "blocked" && <p className="locate-note" role="alert"><b>Location is blocked for this site.</b> Turn it on in your browser’s site settings, then tap the arrow again. Everything else works without it.<button aria-label="Close" onClick={loc.dismiss}><X size={14} /></button></p>}
+        {loc.status === "unavailable" && <p className="locate-note" role="alert"><b>Can’t find your location right now.</b> Try again outside or with a better signal.<button aria-label="Close" onClick={loc.dismiss}><X size={14} /></button></p>}
+        {loc.status === "explain" && <div className="locate-explain" role="dialog" aria-label="Show where you are?">
+          <b>Show where you are?</b>
+          <p>A blue dot shows you on the map, with walking times from where you stand. Your location stays on this phone: nobody in your group sees it, and MuseumHop doesn’t store it.</p>
+          <button className="primary" autoFocus onClick={loc.start}>Show my location</button>
+          <button className="text-button" onClick={loc.dismiss}>Not now</button>
+        </div>}
+        {nextItem && !ride && loc.status === "on" && <div className="next-card">
+          <span className={"stop-number" + (mapRoute[nextIndex].maybe ? " maybe" : "")}>{nextIndex + 1}</span>
+          <button className="next-card-body" onClick={() => pick(nextItem)}><b>{nextItem.title}</b><small>{nextWalk ? (nextWalk.metres > 15000 ? "Far from you" : `${nextWalk.minutes} min walk from you`) : nextItem.venue}{mapRoute[nextIndex].arrival ? ` · arrive ${mapRoute[nextIndex].arrival}` : ""}</small></button>
+          {mapsNext(mapRoute[nextIndex]) && <a className="next-go" href={mapsNext(mapRoute[nextIndex])!} target="_blank" rel="noreferrer" onClick={() => track("google-maps", { kind: "next-card" })}>Go<ArrowUpRight size={14} /></a>}
+        </div>}
         {ridesOpen && gettingAround("in-map")}
         {ride && rideMode && <RideCard mode={rideMode} stop={ride.stop} onClose={() => setRide(null)} onAdd={addTo} onDetails={(id) => { const e = byId.get(id); if (e) pick(e); }}
           added={(id) => (target === "personal" ? myRoute : target === "crew" ? crewStops : route).some((s) => s.id === id)}
@@ -430,9 +461,8 @@ export default function App() {
       <button className="modal-close" autoFocus aria-label="Close details" onClick={() => setSelected(null)}><X size={21} /></button>
       <div className="eyebrow">YOUR NEXT DISCOVERY</div><h2>{selected.title}</h2>
       <div className="detail-tags">{selected.tags.map((t) => <span key={t}>{t}</span>)}</div>
-      <div className="detail-facts"><p><Clock size={17} />7 November · {selected.time}</p><p><MapPin size={17} />{selected.venue}<br />{byMuseum.get(selected.museumId || "")?.address}</p></div>
-      <a className="official-detail" href={selected.url} target="_blank" rel="noreferrer">Read the full programme & practical details<ArrowUpRight size={16} /></a>
-      <p className="detail-help">Check the official listing for session times, reservations, languages, and availability. Listed time ranges may include multiple sessions.</p>
+      <ActivityInfo item={selected} me={loc.spot} />
+      <p className="detail-help">Time ranges can cover several sessions. Check the official page for session times, reservations and availability.</p>
       <div className="detail-actions">
         <button className="primary" disabled={route.some((s) => s.id === selected.id)} onClick={() => addShared(selected.id)}>{route.some((s) => s.id === selected.id) ? <><Check size={16} />In our route</> : <><Plus size={16} />Add to our route</>}</button>
         <button className="secondary" disabled={myRoute.some((s) => s.id === selected.id)} onClick={() => addPersonal(selected.id)}><Plus size={16} />My route</button>
@@ -453,6 +483,7 @@ export default function App() {
       onCreate={async () => { const link = await sync!.newPersonalLink(invite); setLinkMade((n) => n + 1); return link; }} onClose={() => setSpotOpen(false)}
       emailReady={emailReady} onEmail={async (address) => { const made = await sync!.emailMyLink(address, invite); setLinkMade((n) => n + 1); return made; }} />}
     {recoverOpen && sync && <RecoverByEmail onSend={(address) => sync!.recoverByEmail(address)} onClose={() => setRecoverOpen(false)} />}
+    {gmapsOpen && <GoogleMapsSheet stops={gmaps.stops} title={gmaps.title} onClose={() => setGmapsOpen(false)} />}
     {shareOpen && identity && invite && <ShareDialog invite={invite} nightId={identity.night_id} canPlan={identity.role !== "viewer"} onClose={() => setShareOpen(false)} />}
     {switchLink && sync?.pendingLink && <div className="modal-backdrop"><section className="name-modal" role="dialog" aria-modal="true" aria-label="Open this personal link?">
       <KeyRound size={30} /><h2>Open this personal link?</h2>

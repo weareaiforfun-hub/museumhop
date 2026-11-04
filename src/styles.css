@@ -300,3 +300,64 @@
 .intro-overlay{touch-action:none}
 .help-group h3{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin:10px 0 0}
 .help-features a{color:var(--ink);text-decoration:underline}
+
+/* Open in Google Maps */
+.route-tools{display:flex;gap:8px;align-items:stretch;margin:0 0 16px}.route-tools .view-toggle{flex:1;margin:0}
+.gmaps-button{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;padding:0 10px;border-radius:6px;border:1px solid var(--border);background:#fffefb;white-space:nowrap}
+.gmaps-button:hover{border-color:var(--ink)}
+.gmaps-sheet{display:flex;flex-direction:column;gap:12px;width:420px}
+.gmaps-sheet h2{margin:-4px 0 2px}
+.gmaps-next{justify-content:space-between;min-height:46px;font-size:13px;text-align:left}
+.gmaps-next span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gmaps-help{font-size:11.5px!important;line-height:1.5!important;color:#4f5e58!important;margin:-4px 0 0!important}
+.gmaps-options{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.gmaps-seg{display:flex;background:#eef1e8;border-radius:9px;padding:3px}
+.gmaps-seg button{flex:1;padding:9px 6px;border-radius:7px;font-size:12px;font-weight:700;color:#4f5e58}
+.gmaps-seg button.on{background:#fffefb;color:var(--ink);box-shadow:0 1px 3px #0001}
+.gmaps-check{display:flex;gap:8px;align-items:center;font-size:12.5px}
+.gmaps-parts{display:flex;flex-direction:column;gap:8px}
+.gmaps-part{display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:11px;padding:11px 12px;background:#fffefb;font-size:12px}
+.gmaps-part:hover{border-color:var(--ink)}
+.gmaps-part b{width:44px;flex:none}
+.gmaps-nums{display:flex;gap:4px;flex-wrap:wrap;flex:1}
+.gmaps-nums i{font-style:normal;width:24px;height:24px;border-radius:50%;background:var(--coral);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700}
+.gmaps-nums i.you{width:auto;padding:0 8px;border-radius:12px;background:#2f6fdf}
+.gmaps-copy{align-self:center;color:#4f5e58}
+
+/* Where am I: locate button, the blue dot, and the next stop */
+.locate-button{position:absolute;right:16px;top:108px;z-index:10;width:40px;height:40px;border-radius:50%;background:#fffefa;display:grid;place-items:center;box-shadow:0 2px 10px #183b3520;color:#2f6fdf;border:2px solid transparent}
+.locate-button.on{background:#2f6fdf;color:#fff}
+.locate-button.blocked{color:#8c7b75}
+.locate-off{position:absolute;right:62px;top:116px;z-index:10;font-size:10px;font-weight:700;background:#fffefaee;border-radius:12px;padding:5px 9px;box-shadow:0 2px 8px #183b3515}
+.locate-note{position:absolute;right:16px;top:156px;z-index:20;width:270px;background:#fffefb;border-radius:10px;padding:11px 32px 11px 13px;font-size:12px;line-height:1.5;color:#3e4d47;box-shadow:0 4px 14px #0002}
+.locate-note b{color:var(--ink)}
+.locate-note button{position:absolute;top:8px;right:8px;display:flex}
+.locate-explain{position:absolute;left:50%;transform:translateX(-50%);bottom:84px;z-index:950;width:min(340px,calc(100% - 24px));background:#fffefb;border-radius:16px;padding:16px;box-shadow:0 8px 24px #0003;display:flex;flex-direction:column;gap:10px}
+.locate-explain b{font-family:Manrope,sans-serif;font-size:16px}
+.locate-explain p{font-size:12.5px;line-height:1.5;color:#3e4d47}
+.locate-explain .primary{min-height:44px;font-size:13px}
+.locate-explain .text-button{align-self:center;font-size:12px;color:#4f5e58;min-height:30px}
+.me-pin{background:none;border:0}
+.me-pin .me-dot{position:absolute;left:14px;top:14px;width:16px;height:16px;border-radius:50%;background:#2f6fdf;border:3px solid #fff;box-shadow:0 1px 6px #0005;box-sizing:border-box}
+.me-pin.weak .me-dot{background:#7fa3e8}
+.me-pin .me-cone{position:absolute;inset:0;background:conic-gradient(from -30deg at 50% 50%,#2f6fdf55 0 60deg,transparent 60deg);border-radius:50%;-webkit-mask:radial-gradient(circle,#000 0 70%,transparent 71%);mask:radial-gradient(circle,#000 0 70%,transparent 71%)}
+.me-pin .me-cone[hidden]{display:none}
+.next-card{position:absolute;left:50%;transform:translateX(-50%);bottom:84px;z-index:900;width:min(360px,calc(100% - 24px));background:#fffefb;border-radius:14px;padding:10px 12px;box-shadow:0 6px 20px #0003;display:flex;align-items:center;gap:10px}
+.next-card .stop-number.maybe{background:#fffefb;color:#8c7b75;border:2px dashed #8c7b75}
+.next-card-body{flex:1;min-width:0;text-align:left;display:flex;flex-direction:column;gap:2px;padding:0}
+.next-card-body b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.next-card-body small{font-size:11.5px;color:#4f5e58}
+.next-go{display:inline-flex;align-items:center;gap:3px;font-weight:700;font-size:13px;padding:8px 10px;border-radius:8px;background:var(--ink);color:#fffefb}
+
+/* Activity details: when, where, what it is, labels */
+.detail-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:20px 0 14px}
+.detail-card{background:#fffefb;border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.detail-card b{font-size:15px;line-height:1.35}
+.detail-card small{font-size:12px;color:#4f5e58;line-height:1.45}
+.detail-card .live-on{color:#2d7a4f;font-weight:700}.detail-card .live-soon{color:#b4602e;font-weight:700}.detail-card .live-done{color:#8c7b75;font-weight:700}
+.detail-about{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.detail-about p{font-size:14px;line-height:1.6}
+.detail-labels{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.detail-labels span{font-size:11.5px;font-weight:600;padding:5px 9px;border-radius:8px;border:1px solid var(--border);background:#fffefb}
+.detail-modal .official-detail{justify-content:space-between;text-decoration:none;background:#eef1e8;border-radius:9px;padding:11px 14px;font-weight:700;font-size:12.5px}
+@media(max-width:760px){.locate-button{top:104px;right:12px}.locate-off{right:58px;top:112px}.locate-note{right:12px;width:calc(100% - 24px)}.detail-cards{grid-template-columns:1fr}.gmaps-sheet{width:100%}.gmaps-button{font-size:12px}}

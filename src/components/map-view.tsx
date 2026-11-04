@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { byId, byMuseum, FOOD, museumItem, type Item, type Museum, type UiStop } from "../lib/catalogue";
 import type { TransportMode } from "../data/transport";
+import type { Spot } from "../lib/location";
 
 /** Transport drawn over the map: the modes switched on, and which stop is selected. */
 export type TransportLayer = { modes: TransportMode[]; selected: { mode: string; stop: number } | null; onSelect: (mode: string, stop: number) => void };
@@ -32,7 +33,7 @@ function loadLeaflet() {
   return leafletLoading;
 }
 
-export function MapView({ visible, lines, onSelect, focus, fit, transport }: { visible: Item[]; lines: MapLine[]; onSelect: (e: Item) => void; focus: string | null; fit: number; transport?: TransportLayer }) {
+export function MapView({ visible, lines, onSelect, focus, fit, transport, me, locate = 0 }: { visible: Item[]; lines: MapLine[]; onSelect: (e: Item) => void; focus: string | null; fit: number; transport?: TransportLayer; me?: Spot | null; locate?: number }) {
   /** Runs a camera move now, or, while the map is hidden (another view on a phone), once it is shown: Leaflet can't move a 0×0 map. */
   const pendingMove = useRef<(() => void) | null>(null);
   const move = (fn: () => void) => {
@@ -44,6 +45,7 @@ export function MapView({ visible, lines, onSelect, focus, fit, transport }: { v
   pickRide.current = transport?.onSelect;
   select.current = onSelect;
   const [ready, setReady] = useState(false), [error, setError] = useState(""), [zoom, setZoom] = useState(13);
+  const dot = useRef<{ marker: Leaflet; circle: Leaflet } | null>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -218,6 +220,33 @@ export function MapView({ visible, lines, onSelect, focus, fit, transport }: { v
     if (points.length) move(() => map.current?.fitBounds(points, { padding: [40, 40], maxZoom: 15 }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, ridesShown]);
+
+  /* The blue dot: where this phone is, a pale circle for how sure the GPS is, and a cone when you're walking. */
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const L = (window as any).L;
+    if (!me) { dot.current?.marker.remove(); dot.current?.circle.remove(); dot.current = null; return; }
+    const html = `<span class="me-cone"${me.heading == null ? ' hidden' : ` style="transform:rotate(${me.heading}deg)"`}></span><span class="me-dot"></span>`;
+    const weak = me.accuracy > 60;
+    if (!dot.current) {
+      const circle = L.circle([me.lat, me.lng], { radius: me.accuracy, color: "#2f6fdf", weight: 1, opacity: 0.4, fillColor: "#2f6fdf", fillOpacity: 0.12, interactive: false }).addTo(map.current);
+      const marker = L.marker([me.lat, me.lng], { icon: L.divIcon({ className: "me-pin" + (weak ? " weak" : ""), html, iconSize: [44, 44], iconAnchor: [22, 22] }), keyboard: false, interactive: false, zIndexOffset: 4000 }).addTo(map.current);
+      dot.current = { marker, circle };
+    } else {
+      dot.current.marker.setLatLng([me.lat, me.lng]);
+      dot.current.marker.setIcon(L.divIcon({ className: "me-pin" + (weak ? " weak" : ""), html, iconSize: [44, 44], iconAnchor: [22, 22] }));
+      dot.current.circle.setLatLng([me.lat, me.lng]).setRadius(me.accuracy);
+    }
+  }, [ready, me]);
+  useEffect(() => () => { dot.current?.marker.remove(); dot.current?.circle.remove(); dot.current = null; }, []);
+
+  // The locate button (and the first fix after turning it on) centres the map on you, if you're in the city.
+  const hasFix = !!me;
+  useEffect(() => {
+    if (!ready || !me || !locate) return;
+    if (map.current?.options.maxBounds?.contains?.([me.lat, me.lng]) ?? true) move(() => map.current?.flyTo([me.lat, me.lng], Math.max(map.current.getZoom(), 15), { duration: 0.6 }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, locate, hasFix]);
 
   useEffect(() => {
     if (!ready || !focus) return;
