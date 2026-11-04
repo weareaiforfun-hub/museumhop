@@ -119,8 +119,9 @@ if (window.fetch) {
     const m = url.match(/\/functions\/v1\/([\w-]+)/) || url.match(/\/auth\/v1\/(signup|otp|token|recover|magiclink)/);
     const p = f.apply(this, arguments);
     if (m) {
-      const fn = m[0].includes('/auth/') ? 'auth-' + m[1] : m[1], t0 = Date.now(), trigger = t0 - lastAct < 5000 ? 'user' : 'auto';
+      const fn = m[0].includes('/auth/') ? 'auth-' + m[1] : m[1], t0 = Date.now();
       let action; try { const b = init && typeof init.body === 'string' && JSON.parse(init.body); const a = b && (b.action || b.mode || b.type); if (typeof a === 'string' && a.length < 30) action = a; } catch (e) {}
+      const trigger = action !== 'status' && t0 - lastAct < 5000 ? 'user' : 'auto'; // a status check is the app itself, whatever the visitor is doing
       const done = (ok, status) => { if (fn !== 'auth-token' || trigger === 'user') T('feature-use', { feature: fn, ...(action ? { action } : {}), ok, status, trigger, seconds: Math.round((Date.now() - t0) / 100) / 10, page: page() }); };
       p.then(r => done(r.ok, r.status), () => done(false, 0));
     }
