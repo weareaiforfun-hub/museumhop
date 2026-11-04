@@ -34,6 +34,8 @@ type Undo = { text: string; ops: Op[] };
 const KNOWN = "na:nights";
 const known = (): Record<string, string> => { try { return JSON.parse(localStorage.getItem(KNOWN) ?? "{}"); } catch { return {}; } };
 const remember = (token: string, nightId: string) => { try { localStorage.setItem(KNOWN, JSON.stringify({ ...known(), [token]: nightId })); } catch { /* private mode */ } };
+/** The name box's example, a different one each visit. */
+const EXAMPLE_NAME = ["Sanne", "Daan", "Jan Jansen", "Night Owl", "Museum Hopper", "Art Attack", "Rembrandt van Rave", "Vincent van Gogo", "Night Watcher"][Math.floor(Math.random() * 9)];
 const pref = (k: string) => { try { return localStorage.getItem(k) ?? ""; } catch { return ""; } };
 const setPref = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } };
 
@@ -300,7 +302,7 @@ export default function App() {
   const joinForm = (
     <form className="join-form" onSubmit={(e) => { e.preventDefault(); enter(); }}>
       <label htmlFor="your-name">Your name</label>
-      <input id="your-name" autoFocus={nameDialog} value={name} onChange={(e) => setName(e.target.value)} maxLength={32} placeholder="e.g. Arian" autoComplete="given-name" required />
+      <input id="your-name" autoFocus={nameDialog} value={name} onChange={(e) => setName(e.target.value)} maxLength={32} placeholder={"e.g. " + EXAMPLE_NAME} autoComplete="given-name" required />
       <div className="color-choice" role="radiogroup" aria-label="Your colour">
         {COLORS.map((c) => <button type="button" key={c} role="radio" aria-checked={c === color} aria-label={"Colour " + c} className={c === color ? "on" : ""} style={{ background: c }} onClick={() => setColor(c)} />)}
       </div>
