@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { Accessibility, ArrowUpRight } from "lucide-react";
 import { byMuseum, type Item } from "../lib/catalogue";
 import { liveStatus, walkFrom, type Spot } from "../lib/location";
 import details from "../data/details.json";
@@ -21,7 +21,7 @@ export function ActivityInfo({ item, me }: { item: Item; me: Spot | null }) {
   const now = useMinute(), m = byMuseum.get(item.museumId || ""), more = extra[item.id] ?? {};
   const isVenue = item.id.startsWith("museum:");
   const status = isVenue ? null : liveStatus(item.time, now), walk = me ? walkFrom(me, item.museumId) : null;
-  const facts = [...(more.facts ?? []), ...(m?.accessible ? ["Wheelchair accessible"] : []), ...(m?.bar ? ["Bar"] : [])];
+  const facts = [...(more.facts ?? []), ...(m?.bar ? ["Bar"] : [])];
   return <>
     <div className="detail-cards">
       <div className="detail-card"><span className="eyebrow">WHEN</span>
@@ -34,6 +34,7 @@ export function ActivityInfo({ item, me }: { item: Item; me: Spot | null }) {
       </div>
     </div>
     {more.description && <div className="detail-about"><span className="eyebrow">WHAT IS IT</span><p>{more.description}</p></div>}
+    {m && <div className={"detail-access" + (m.accessible ? "" : " unlisted")}><Accessibility size={16} /><p><b>{m.accessible ? "Wheelchair accessible venue" : "Wheelchair access not listed"}</b>{m.accessible ? "Listed by the organiser for the venue. Single rooms or activities can differ." : "The organiser doesn’t list it for this venue, which doesn’t always mean it isn’t possible."} Check the official page or ask the venue.</p></div>}
     {facts.length > 0 && <div className="detail-labels">{facts.map((f) => <span key={f}>{f}</span>)}</div>}
     <a className="official-detail" href={item.url} target="_blank" rel="noreferrer"><span>{more.description ? "Full description, tickets & times on the official page" : "Description, tickets & times on the official page"}</span><ArrowUpRight size={16} /></a>
   </>;

@@ -397,3 +397,12 @@
   .tl-step{width:100%;justify-content:space-between}
   .tl-step button{width:44px;height:40px}
 }
+
+/* Wheelchair access: per venue, as the organiser lists it. "Not listed" is not the same as "not accessible". */
+.filter-row{flex-wrap:wrap}
+.card-wheelchair{margin-left:5px;color:var(--ink)}
+.detail-access{display:flex;gap:9px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;border-radius:10px;background:#e6f2ea;color:var(--ink)}
+.detail-access.unlisted{background:#eef1e8}
+.detail-access svg{flex:none;margin-top:1px}
+.detail-access p{margin:0;font-size:12px;line-height:1.45;color:#4f5e58}
+.detail-access b{display:block;font-size:13px;color:var(--ink)}

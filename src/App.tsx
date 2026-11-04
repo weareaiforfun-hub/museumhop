@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Bus, Check, Navigation, NavigationOff, KeyRound, ChevronRight, Clock, Compass, Mail, Map as MapIcon, MapPin, Moon, Plus, Route, Search, Share2, Sparkles, Star, Utensils, Undo2, X } from "lucide-react";
+import { Accessibility, ArrowUpRight, Bus, Check, Navigation, NavigationOff, KeyRound, ChevronRight, Clock, Compass, Mail, Map as MapIcon, MapPin, Moon, Plus, Route, Search, Share2, Sparkles, Star, Utensils, Undo2, X } from "lucide-react";
 import { activities, byId, byMuseum, COLORS, FOOD, initials, items, minute, warnings, type Item, type UiStop } from "./lib/catalogue";
 import { addStopOps, derive, personalRouteOps, replaceRouteOps, rescheduleOps, useSync } from "./lib/night";
 import { newId, sync, type Op } from "./lib/sync";
@@ -43,7 +43,7 @@ export default function App() {
   const { data, status, userId } = useSync();
   const [target, setTarget] = useState<"shared" | "personal" | "crew">("shared");
   const [asideMode, setAsideMode] = useState<Aside>("route"), [previewId, setPreviewId] = useState<string | null>(null);
-  const [category, setCategory] = useState("Activities"), [query, setQuery] = useState(""), [tag, setTag] = useState("All types"), [view, setView] = useState("Explore"), [suggestedOnly, setSuggestedOnly] = useState(false), [personFilter, setPersonFilter] = useState("all");
+  const [category, setCategory] = useState("Activities"), [query, setQuery] = useState(""), [tag, setTag] = useState("All types"), [view, setView] = useState("Explore"), [suggestedOnly, setSuggestedOnly] = useState(false), [wheelchair, setWheelchair] = useState(false), [personFilter, setPersonFilter] = useState("all");
   const [invite, setInvite] = useState(""), [nightId, setNightId] = useState(""), [resolving, setResolving] = useState(false);
   const [spotOpen, setSpotOpen] = useState(false), [switchLink, setSwitchLink] = useState(false), [, setLinkMade] = useState(0);
   const loc = useLocation(), [locateTick, setLocateTick] = useState(0), [gmapsOpen, setGmapsOpen] = useState(false);
@@ -273,10 +273,11 @@ export default function App() {
     let list = category === "Museums" ? items.filter((e) => e.id.startsWith("museum:")) : activities;
     if (category === "Food & drink") list = list.filter((e) => e.tags.includes(FOOD));
     if (tag !== "All types") list = list.filter((e) => e.tags.includes(tag));
+    if (wheelchair) list = list.filter((e) => byMuseum.get(e.museumId || "")?.accessible);
     if (query.trim()) { const q = query.toLocaleLowerCase(); list = list.filter((e) => (e.title + " " + e.venue + " " + e.tags.join(" ") + " " + byMuseum.get(e.museumId || "")?.address).toLocaleLowerCase().includes(q)); }
     if (suggestedOnly) list = list.filter((e) => suggestions.some((s) => s.event_id === e.id && (personFilter === "all" || s.member_id === personFilter)));
     return list;
-  }, [category, query, tag, suggestedOnly, personFilter, suggestions]);
+  }, [category, query, tag, wheelchair, suggestedOnly, personFilter, suggestions]);
   const types = useMemo(() => Array.from(new Set(activities.flatMap((e) => e.tags))).sort(), []);
   function pick(e: Item) { setSelected(e); setFocus(e.museumId); setNote(suggestions.find((s) => s.event_id === e.id && s.member_id === userId)?.note || ""); }
   const suggesters = (id: string) => suggestions.filter((s) => s.event_id === id);
@@ -334,19 +335,19 @@ export default function App() {
           <div className="section-heading"><h2>Explore the night</h2><span className="count">{activities.length} activities</span></div>
           <div className="category-tabs">{["Activities", "Museums", "Food & drink"].map((c) => <button key={c} className={category === c ? "active" : ""} onClick={() => { setCategory(c); setTag("All types"); }}>{c === "Food & drink" && <Utensils size={13} />} {c}</button>)}</div>
           <label className="search"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search places, activities…" aria-label="Search places and activities" />{query && <button aria-label="Clear search" onClick={() => setQuery("")}><X size={15} /></button>}</label>
-          <div className="filter-row"><select value={tag} onChange={(e) => setTag(e.target.value)} aria-label="Activity type" disabled={category === "Museums"}><option>All types</option>{types.map((t) => <option key={t}>{t}</option>)}</select><button className={"suggested-filter " + (suggestedOnly ? "active" : "")} onClick={() => setSuggestedOnly(!suggestedOnly)}><Star size={14} />Picks</button></div>
+          <div className="filter-row"><select value={tag} onChange={(e) => setTag(e.target.value)} aria-label="Activity type" disabled={category === "Museums"}><option>All types</option>{types.map((t) => <option key={t}>{t}</option>)}</select><button className={"suggested-filter " + (suggestedOnly ? "active" : "")} onClick={() => setSuggestedOnly(!suggestedOnly)}><Star size={14} />Picks</button><button className={"suggested-filter wheelchair-filter " + (wheelchair ? "active" : "")} aria-pressed={wheelchair} title="Venues the organiser lists as wheelchair accessible" onClick={() => setWheelchair(!wheelchair)}><Accessibility size={14} />Wheelchair</button></div>
           {suggestedOnly && <select className="person-select" aria-label="Filter suggestions by person" value={personFilter} onChange={(e) => setPersonFilter(e.target.value)}><option value="all">Everyone’s picks</option>{people.map((m) => <option key={m.id} value={m.id}>{m.name}{m.fictional ? " · fictional" : ""}</option>)}</select>}
           <div className="results-line"><span>{filtered.length} {category === "Museums" ? "museums" : "options"} to discover</span><span>⌖ Amsterdam</span></div>
         </div>
         <div className="event-list">
-          {filtered.length === 0 && <div className="empty"><Search size={26} /><h3>No matches yet</h3><p>Try another search or filter. Your next discovery is out there.</p><button onClick={() => { setQuery(""); setTag("All types"); setSuggestedOnly(false); }}>Clear filters</button></div>}
+          {filtered.length === 0 && <div className="empty"><Search size={26} /><h3>No matches yet</h3><p>Try another search or filter. Your next discovery is out there.</p><button onClick={() => { setQuery(""); setTag("All types"); setSuggestedOnly(false); setWheelchair(false); }}>Clear filters</button></div>}
           {filtered.map((e) => {
             const inMine = myRoute.some((s) => s.id === e.id), inOurs = route.some((s) => s.id === e.id), inCrew = crewStops.some((s) => s.id === e.id), food = e.tags.includes(FOOD);
             return <article key={e.id} className={"event-card " + (inOurs || inMine || inCrew ? "on-route" : "")}>
               <div className="card-topline"><span className={"type-label " + (food ? "food-label" : "")}>{e.id.startsWith("museum:") ? "MUSEUM" : food ? "FOOD & DRINK" : e.tags[0] || "DISCOVER"}</span><ReactionButtons value={myReaction(e.id)} onChange={(r) => react(e.id, r)} title={e.title} /></div>
               <button className="card-title" onClick={() => pick(e)}>{e.title}<ArrowUpRight size={16} /></button>
               {!e.id.startsWith("museum:") && <p className="venue"><MapPin size={13} />{e.venue}</p>}
-              <div className="card-bottom"><span><Clock size={13} />{e.time.replace(" - ", " – ")}</span><div className="add-buttons">
+              <div className="card-bottom"><span><Clock size={13} />{e.time.replace(" - ", " – ")}{byMuseum.get(e.museumId || "")?.accessible && <Accessibility className="card-wheelchair" size={13} role="img" aria-label="Wheelchair accessible venue" />}</span><div className="add-buttons">
                 <button className={inMine ? "added" : "add-button"} disabled={inMine} onClick={() => { track("stop-add", { route: "personal" }); addPersonal(e.id); }} aria-label={"Add to my route: " + e.title}>{inMine ? <Check size={14} /> : <Plus size={14} />}My route</button>
                 <button className={inOurs ? "added" : "add-button"} disabled={inOurs} onClick={() => { track("stop-add", { route: "shared" }); addShared(e.id); }} aria-label={"Add to our route: " + e.title}>{inOurs ? <Check size={14} /> : <Plus size={14} />}Our route</button>
                 {crewRoute && <button className={inCrew ? "added" : "add-button"} disabled={inCrew} onClick={() => { track("stop-add", { route: "crew" }); addCrew(e.id); }} aria-label={`Add to ${myCrewName}’s route: ${e.title}`}>{inCrew ? <Check size={14} /> : <Plus size={14} />}Crew</button>}

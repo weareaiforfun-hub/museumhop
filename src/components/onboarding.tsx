@@ -37,7 +37,7 @@ const TOUR: Spot[] = [
 type Feature = Spot & { needsNight?: boolean; group: string };
 /** Everything MuseumHop can do, for the "What can I do?" tab, in groups. `needsNight` ones only exist once you're in a night. */
 const FEATURES: Feature[] = [
-  { group: "Find things", view: "Explore", target: ".explore-controls", title: "Search and filter", body: "Search by activity, venue or street. Filter by type (music, talks, workshops…), or switch to museums or food & drink." },
+  { group: "Find things", view: "Explore", target: ".explore-controls", title: "Search and filter", body: "Search by activity, venue or street. Filter by type (music, talks, workshops…) or wheelchair-accessible venues, or switch to museums or food & drink." },
   { group: "Find things", view: "Map", target: ".map-panel", title: "Tap a venue on the map", body: "Opens the venue with everything on there tonight. Tap a ring to zoom into venues close together." },
   { group: "Find things", view: "Map", target: ".rides-button", title: "See buses, boats and ferries", body: "Getting around shows the free Museumnacht buses, the uitvaartbus, the Lampedusa boat, ferries, the museum tram and bike parking. Tap a ride to add it to your route." },
   { group: "Find things", view: "Explore", target: ".event-card", title: "Open an activity", body: "Tap a title for when and where, whether it’s on right now (on the night), wheelchair access and bar, the official page, and a note on why you’d like to go." },
