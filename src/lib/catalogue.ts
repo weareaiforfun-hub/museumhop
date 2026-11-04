@@ -3,7 +3,10 @@ import catalogue from "../data/catalogue.json";
 export type Museum = (typeof catalogue.museums)[number];
 export type Item = { id: string; title: string; time: string; venue: string; museumId: string | null; tags: string[]; url: string };
 /** A stop as the UI sees it: `id` is the programme item, `rowId` the database row (absent in previews). */
-export type UiStop = { id: string; arrival: string; duration: number; reason?: string; practical?: string; transfer?: string; fixed?: boolean; rowId?: string; pos?: number; maybe?: boolean };
+/** How you get from one stop to the next. */
+export type Mode = "foot" | "bike" | "car";
+/** `travel` is a mode picked for the leg into this stop (stored); `mode` is the one that applies, the route's if none (not stored). */
+export type UiStop = { id: string; arrival: string; duration: number; reason?: string; practical?: string; transfer?: string; fixed?: boolean; rowId?: string; pos?: number; maybe?: boolean; travel?: Mode | null; mode?: Mode };
 
 export const museums = catalogue.museums as Museum[];
 export const activities = catalogue.events as Item[];

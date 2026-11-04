@@ -116,7 +116,7 @@ export function Crews({ data, night, userId, canWrite, shared, run, onPick, onCh
           ) : <>
             {toggle}
             {routeView === "timeline"
-              ? <Timeline stops={myStops} title={myCrew.name} onPick={onPick} onPropose={onPropose} onPreview={onPreview} onReschedule={(next, label) => run(replaceRouteOps(myRoute, myStops, next), label)} />
+              ? <Timeline stops={myStops} title={myCrew.name} onPick={onPick} onPropose={onPropose} onPreview={onPreview} onReschedule={(next, label) => run(replaceRouteOps(myRoute, myStops, next), label)} route={myRoute} onOps={run} />
               : <RouteList stops={myStops} onPick={onPick} run={run} routeName={myCrew.name + "’s route"} />}
           </>}
         </div>

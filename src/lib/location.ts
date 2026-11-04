@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { byId, byMuseum, type UiStop } from "./catalogue";
+import { byId, byMuseum, type Mode, type UiStop } from "./catalogue";
 import { analyse } from "./plan";
 
 /** Where this phone is. Never stored or sent anywhere: it lives in this tab's memory only. */
@@ -86,10 +86,11 @@ export function liveStatus(time: string, now = new Date()): { text: string; tone
 const place = (id: string) => { const m = byMuseum.get(byId.get(id)?.museumId || ""); return m ? `${m.address}, Amsterdam` : null; };
 
 /** One Google Maps link: walking directions through the places in order. No `origin` means "from where I am". */
-export function mapsLink(places: string[], fromHere: boolean) {
+export const TRAVELMODE: Record<Mode, string> = { foot: "walking", bike: "bicycling", car: "driving" };
+export function mapsLink(places: string[], fromHere: boolean, mode: Mode = "foot") {
   const [origin, ...rest] = fromHere ? [null, ...places] : places;
   const destination = rest.at(-1)!, waypoints = rest.slice(0, -1);
-  return "https://www.google.com/maps/dir/?api=1&travelmode=walking" + (origin ? "&origin=" + encodeURIComponent(origin) : "")
+  return "https://www.google.com/maps/dir/?api=1&travelmode=" + TRAVELMODE[mode] + (origin ? "&origin=" + encodeURIComponent(origin) : "")
     + "&destination=" + encodeURIComponent(destination) + (waypoints.length ? "&waypoints=" + encodeURIComponent(waypoints.join("|")) : "");
 }
 
@@ -98,17 +99,18 @@ export function mapsLink(places: string[], fromHere: boolean) {
 export function mapsParts(stops: UiStop[], { fromHere, skipMaybe }: { fromHere: boolean; skipMaybe: boolean }) {
   const list = stops.map((s, i) => ({ n: i + 1, s, p: place(s.id) })).filter((x) => x.p && !(skipMaybe && x.s.maybe))
     .filter((x, i, all) => i === 0 || all[i - 1].p !== x.p);
+  const mode = stops.find((s) => !s.travel)?.mode ?? stops[0]?.mode ?? "foot"; // the route's own way of getting around
   const parts: { numbers: number[]; url: string }[] = [];
   let origin = fromHere ? null : list.shift() ?? null;
   while (list.length) {
     const take = list.splice(0, 4);
     const chain = origin ? [origin, ...take] : take;
-    parts.push({ numbers: chain.map((x) => x.n), url: mapsLink(chain.map((x) => x.p!), !origin) });
+    parts.push({ numbers: chain.map((x) => x.n), url: mapsLink(chain.map((x) => x.p!), !origin, mode) });
     origin = take.at(-1)!;
   }
-  if (!parts.length && origin) parts.push({ numbers: [origin.n], url: mapsLink([origin.p!], true) });
+  if (!parts.length && origin) parts.push({ numbers: [origin.n], url: mapsLink([origin.p!], true, mode) });
   return parts;
 }
 
-/** Walking directions from where you are to one stop. */
-export const mapsNext = (s: UiStop) => { const p = place(s.id); return p ? mapsLink([p], true) : null; };
+/** Directions from where you are to one stop, in the way you get there. */
+export const mapsNext = (s: UiStop) => { const p = place(s.id); return p ? mapsLink([p], true, s.mode) : null; };

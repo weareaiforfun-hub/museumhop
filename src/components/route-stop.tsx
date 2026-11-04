@@ -3,6 +3,7 @@ import { ArrowUpRight, ChevronDown, GripVertical, X } from "lucide-react";
 import { byId, byMuseum, minute, warnings, type Item, type UiStop } from "../lib/catalogue";
 import { maybeOps, removeOps, reorderOps, timingOps } from "../lib/night";
 import { useReorder } from "../lib/reorder";
+import { TRAVELMODE } from "../lib/location";
 import type { Op } from "../lib/sync";
 
 type Run = (ops: Op[], label?: string) => void;
@@ -49,7 +50,7 @@ function RouteStop({ s, index, route, onPick, run, routeName, handle, style, lif
           <button aria-pressed={!s.maybe} className={!s.maybe ? "on" : ""} onClick={() => s.maybe && run(maybeOps(s, false), `${e.title} is a sure stop`)}>Sure</button>
           <button aria-pressed={!!s.maybe} className={s.maybe ? "on" : ""} onClick={() => !s.maybe && run(maybeOps(s, true), `${e.title} is a maybe`)}>Maybe</button>
         </div>
-        {m && <a className="directions" href={"https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(m.address + ", Amsterdam") + (prev ? "&origin=" + encodeURIComponent(prev.address + ", Amsterdam") : "") + "&travelmode=walking"} target="_blank" rel="noreferrer">{prev ? "Directions from previous stop" : "Directions to this stop"}<ArrowUpRight size={12} /></a>}
+        {m && <a className="directions" href={"https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(m.address + ", Amsterdam") + (prev ? "&origin=" + encodeURIComponent(prev.address + ", Amsterdam") : "") + "&travelmode=" + TRAVELMODE[s.mode ?? "foot"]} target="_blank" rel="noreferrer">{prev ? "Directions from previous stop" : "Directions to this stop"}<ArrowUpRight size={12} /></a>}
       </div>}
       {(warning || isBackwards) && <small className="time-warning">{warning || "This overlaps the previous visit. Allow time to travel, too."}</small>}
     </div>

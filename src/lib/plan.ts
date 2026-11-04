@@ -1,25 +1,38 @@
 import walk from "../data/walk.json";
-import { byId, byMuseum, clock, minute, windowOf, type UiStop } from "./catalogue";
+import bike from "../data/bike.json";
+import car from "../data/car.json";
+import { byId, byMuseum, clock, minute, windowOf, type Mode, type UiStop } from "./catalogue";
 
-const index = new Map(walk.ids.map((id, i) => [id, i]));
+type Matrix = { ids: string[]; minutes: (number | null)[][]; metres: (number | null)[][] };
+const MATRIX: Record<Mode, Matrix> = { foot: walk, bike, car };
+const INDEX = Object.fromEntries(Object.entries(MATRIX).map(([k, m]) => [k, new Map(m.ids.map((id, i) => [id, i]))])) as Record<Mode, Map<string, number>>;
+/** Metres per minute when a pair is missing from the routing tables (straight line × 1.3). */
+const SPEED: Record<Mode, number> = { foot: 80, bike: 250, car: 400 };
+/** Minutes added per leg: locking the bike, or finding a parking spot in a busy centre on a Saturday night. */
+const EXTRA: Record<Mode, number> = { foot: 0, bike: 2, car: 10 };
+export const MODES: { id: Mode; label: string; verb: string }[] = [
+  { id: "foot", label: "Walk", verb: "walking" }, { id: "bike", label: "Bike", verb: "cycling" }, { id: "car", label: "Car", verb: "driving" },
+];
 const START = minute("19:00"), END = minute("02:00");
 
-/** Walking time and distance between two programme items, from the routing matrix (or straight line × 1.3 at 4.8 km/h). */
-export function leg(fromEvent: string, toEvent: string): { minutes: number; metres: number } {
+/** Travel time and distance between two programme items, from the routing tables (or straight line × 1.3). */
+export function leg(fromEvent: string, toEvent: string, mode: Mode = "foot"): { minutes: number; metres: number; mode: Mode } {
   const a = byId.get(fromEvent)?.museumId, b = byId.get(toEvent)?.museumId;
-  if (!a || !b || a === b) return { minutes: 0, metres: 0 };
-  const i = index.get(a), j = index.get(b);
-  const m = i != null && j != null ? walk.minutes[i][j] : null;
-  if (m != null) return { minutes: m, metres: walk.metres[i!][j!] ?? 0 };
+  if (!a || !b || a === b) return { minutes: 0, metres: 0, mode };
+  const i = INDEX[mode].get(a), j = INDEX[mode].get(b);
+  const m = i != null && j != null ? MATRIX[mode].minutes[i][j] : null;
+  if (m != null) return { minutes: m + EXTRA[mode], metres: MATRIX[mode].metres[i!][j!] ?? 0, mode };
   const p = byMuseum.get(a)!, q = byMuseum.get(b)!;
   const rad = Math.PI / 180, dLat = (q.lat - p.lat) * rad, dLng = (q.lng - p.lng) * rad;
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(p.lat * rad) * Math.cos(q.lat * rad) * Math.sin(dLng / 2) ** 2;
   const metres = 2 * 6371000 * Math.asin(Math.sqrt(h)) * 1.3;
-  return { minutes: Math.round(metres / 80), metres: Math.round(metres) };
+  return { minutes: Math.round(metres / SPEED[mode]) + EXTRA[mode], metres: Math.round(metres), mode };
 }
+/** The leg into stop `to`, in the mode that applies to it. */
+const into = (from: UiStop, to: UiStop) => leg(from.id, to.id, to.mode ?? to.travel ?? "foot");
 
 export type Slot = UiStop & { start: number; end: number; estimated: boolean; window: [number, number] | null; outside: boolean;
-  walk: { minutes: number; metres: number }; gap: number | null; tight: boolean };
+  walk: { minutes: number; metres: number; mode: Mode }; gap: number | null; tight: boolean };
 export type Analysis = { slots: Slot[]; walkMinutes: number; metres: number; ends: number | null; tight: number; outside: number };
 
 /** Works out when each stop happens. Stops without an arrival time follow straight on from the previous one. */
@@ -27,7 +40,7 @@ export function analyse(stops: UiStop[]): Analysis {
   const slots: Slot[] = [];
   for (const [i, s] of stops.entries()) {
     const prev = slots[i - 1];
-    const w = prev ? leg(prev.id, s.id) : { minutes: 0, metres: 0 };
+    const w = prev ? into(prev, s) : { minutes: 0, metres: 0, mode: s.mode ?? "foot" };
     const window = windowOf(byId.get(s.id));
     const earliest = prev ? prev.end + w.minutes : Math.max(START, window?.[0] ?? START);
     const start = s.arrival ? minute(s.arrival) : Math.max(earliest, window?.[0] ?? 0);
@@ -51,16 +64,16 @@ const roundUp5 = (n: number) => Math.ceil(n / 5) * 5;
 /** Moves later arrivals forward just enough to walk there; earlier stops and fixed sessions stay put. */
 export function pushToFit(stops: UiStop[]): UiStop[] {
   const out: UiStop[] = [];
-  let prevEnd: number | null = null, prevId = "";
+  let prevEnd: number | null = null, prev: UiStop | null = null;
   for (const s of stops) {
     let start = s.arrival ? minute(s.arrival) : null;
     if (prevEnd != null && start != null && !s.fixed) {
-      const need = prevEnd + leg(prevId, s.id).minutes;
+      const need = prevEnd + (prev ? into(prev, s).minutes : 0);
       if (start < need) start = roundUp5(need);
     }
     out.push(start != null && clock(start) !== s.arrival ? { ...s, arrival: clock(start) } : s);
-    prevEnd = start != null ? start + s.duration : prevEnd != null ? prevEnd + leg(prevId, s.id).minutes + s.duration : null;
-    prevId = s.id;
+    prevEnd = start != null ? start + s.duration : prevEnd != null ? prevEnd + (prev ? into(prev, s).minutes : 0) + s.duration : null;
+    prev = s;
   }
   return out;
 }
@@ -70,7 +83,7 @@ function schedule(order: UiStop[], firstStart: number): { stops: UiStop[]; walk:
   const out: UiStop[] = [];
   let t = firstStart, walked = 0;
   for (const [i, s] of order.entries()) {
-    const w = i ? leg(order[i - 1].id, s.id).minutes : 0;
+    const w = i ? into(order[i - 1], s).minutes : 0;
     walked += w;
     const window = windowOf(byId.get(s.id));
     let start = Math.max(roundUp5(t + w), window?.[0] ?? 0);
@@ -108,7 +121,7 @@ export function suggestOrder(stops: UiStop[]): Suggestion | null {
     let order = [stops[0]];
     const left = stops.slice(1);
     while (left.length) {
-      left.sort((a, b) => leg(order.at(-1)!.id, a.id).minutes - leg(order.at(-1)!.id, b.id).minutes);
+      left.sort((a, b) => into(order.at(-1)!, a).minutes - into(order.at(-1)!, b).minutes);
       order.push(left.shift()!);
     }
     best = schedule(order, first);

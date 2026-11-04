@@ -19,7 +19,7 @@ export function GoogleMapsSheet({ stops, title, onClose }: { stops: UiStop[]; ti
       <span className="eyebrow">{title.toUpperCase()}</span>
       <h2>Open in Google Maps</h2>
       {nextUrl && <><a className="primary gmaps-next" href={nextUrl} target="_blank" rel="noreferrer" onClick={() => open("next")}><span>Next stop: {byId.get(next.id)?.title}</span><ArrowUpRight size={16} /></a>
-        <p className="gmaps-help">Walking directions from where you are. The easiest way to go stop by stop.</p></>}
+        <p className="gmaps-help">Directions from where you are. The easiest way to go stop by stop.</p></>}
       <div className="gmaps-options">
         <span className="eyebrow">THE WHOLE ROUTE</span>
         <div className="gmaps-seg" role="group" aria-label="Start from">
@@ -34,7 +34,7 @@ export function GoogleMapsSheet({ stops, title, onClose }: { stops: UiStop[]; ti
         <ArrowUpRight size={15} />
       </a>)}</div>
       {parts.length > 1 && <p className="gmaps-help">On a phone, Google Maps takes up to 5 places per link, so longer routes open in parts. Each part starts where the last one ended.</p>}
-      <p className="gmaps-help">Google Maps doesn’t know your times or maybe stops; it just walks you past the places in order.</p>
+      <p className="gmaps-help">Google Maps doesn’t know your times or maybe stops; it just takes you past the places in order.</p>
       {parts.length === 1 && <button className="text-button gmaps-copy" onClick={() => { navigator.clipboard?.writeText(parts[0].url).then(() => setCopied(true)); }}><Copy size={13} />{copied ? "Link copied" : "Copy the link"}</button>}
     </section>
   </div>;

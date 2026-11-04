@@ -408,7 +408,7 @@ export default function App() {
         {loading ? <div className="start-plan"><div className="illustration"><Moon size={38} /></div><h3>Loading your night…</h3></div>
         : asideMode === "personal" && identity && routeView === "timeline" && myRoute.length ? <section className="personal-route"><h3>My route</h3>{viewToggle}
             <Timeline stops={myRoute} title={night?.mine?.title || "My route"} onPick={pick} onPropose={proposeMine} onPreview={(p) => { setPreviewStops(p); if (p) setFit((f) => f + 1); }}
-              onReschedule={(next, label) => run(rescheduleOps(myRoute, next), label)} /></section>
+              onReschedule={(next, label) => run(rescheduleOps(myRoute, next), label)} route={night?.mine} onOps={run} /></section>
         : asideMode === "personal" && identity ? <PersonalRoute title={night?.mine?.title} name={identity.display_name} route={myRoute} events={byId} shared={route}
             onRename={(t) => run(night!.mine ? [{ t: "update", table: "na_routes", id: night!.mine.id, patch: { title: t } }] : personalRouteOps(identity.night_id, userId, undefined, t, []).ops)}
             run={run} onPick={pick}
@@ -438,7 +438,7 @@ export default function App() {
               {viewToggle}
               {routeView === "timeline"
                 ? <Timeline stops={route} title="Our route" onPick={pick} onPropose={proposeMine} onPreview={(p) => { setPreviewStops(p); if (p) setFit((f) => f + 1); }}
-                    onReschedule={(next, label) => run(rescheduleOps(route, next), label)} />
+                    onReschedule={(next, label) => run(rescheduleOps(route, next), label)} route={night?.shared} onOps={canEditShared ? run : null} />
                 : <RouteList stops={route} onPick={pick} run={run} routeName="our route" />}
               <div className="route-disclaimer">The dashed line connects stops in order; dotted grey lines lead to maybe stops. Drag a stop’s handle to reorder. Use directions for streets, crossings, and ferries. Travel and queue time are not included.</div>
               {lastSharedChange && data && night && <p className="last-editor">Last change: {describe(lastSharedChange, data, night)}</p>}

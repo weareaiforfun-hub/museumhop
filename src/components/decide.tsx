@@ -83,7 +83,8 @@ export function Decide({ data, night, userId, proposals, onPick, onReact, onDead
 
   function makeDraft() {
     const top = rows.filter((r) => r.skips === 0 && r.score > 0 && !r.eventId.startsWith("museum:")).slice(0, 5);
-    const stops: UiStop[] = top.map((r) => ({ id: r.eventId, arrival: "", duration: 45 }));
+    const mode = night.shared?.travel ?? "foot", stay = night.shared?.stay ?? 45;
+    const stops: UiStop[] = top.map((r) => ({ id: r.eventId, arrival: "", duration: stay, mode }));
     const ordered = suggestOrder(stops)?.stops ?? analyse(stops).slots.map(({ id, duration, start }) => ({ id, duration, arrival: clock(start) }));
     setDraft(ordered);
     onPreview(ordered);

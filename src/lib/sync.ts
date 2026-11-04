@@ -1,11 +1,12 @@
 import { track } from "./track";
 import { createClient, type RealtimeChannel, type SupabaseClient } from "@supabase/supabase-js";
+import type { Mode } from "./catalogue";
 
 /* Rows exactly as they are stored in Supabase (to-one project, na_ tables). */
 export type Night = { id: string; name: string; event_date: string; vote_deadline: string | null; route_locked_at: string | null; created_by: string };
 export type Member = { id: string; night_id: string; user_id: string; display_name: string; color: string; role: "organiser" | "planner" | "viewer"; fictional: boolean; joined_at: string };
-export type Route = { id: string; night_id: string; kind: "shared" | "personal" | "crew"; owner_user: string | null; crew_id: string | null; title: string; description: string; practical: string; updated_at: string };
-export type StopRow = { id: string; night_id: string; route_id: string; pos: number; event_id: string; arrival: string; duration: number; reason: string; practical: string; transfer: string; fixed: boolean; maybe?: boolean; updated_by: string; updated_at: string };
+export type Route = { id: string; night_id: string; kind: "shared" | "personal" | "crew"; owner_user: string | null; crew_id: string | null; title: string; description: string; practical: string; updated_at: string; travel?: Mode; stay?: number };
+export type StopRow = { id: string; night_id: string; route_id: string; pos: number; event_id: string; arrival: string; duration: number; reason: string; practical: string; transfer: string; fixed: boolean; maybe?: boolean; travel?: Mode | null; updated_by: string; updated_at: string };
 export type Reaction = { id: string; night_id: string; user_id: string; event_id: string; reaction: "must" | "up" | "skip"; note: string; updated_at: string };
 export type IdeaVote = { id: string; night_id: string; user_id: string; route_id: string };
 export type Crew = { id: string; night_id: string; name: string; color: string; created_at: string };

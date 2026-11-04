@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import type { UiStop } from "./catalogue";
+import type { Mode, UiStop } from "./catalogue";
 import { newId, sync, type Data, type Member, type Op, type Route, type StopRow, type Status } from "./sync";
 
-export const toUi = (s: StopRow): UiStop => ({ id: s.event_id, arrival: s.arrival, duration: s.duration, reason: s.reason, practical: s.practical, transfer: s.transfer, fixed: s.fixed, rowId: s.id, pos: s.pos, maybe: !!s.maybe });
+export const toUi = (s: StopRow, mode: Mode = "foot"): UiStop => ({ id: s.event_id, arrival: s.arrival, duration: s.duration, reason: s.reason, practical: s.practical, transfer: s.transfer, fixed: s.fixed, rowId: s.id, pos: s.pos, maybe: !!s.maybe, travel: s.travel ?? null, mode: s.travel ?? mode });
 
 /** Re-renders on every change in the sync engine. */
 export function useSync() {
@@ -16,7 +16,11 @@ export function derive(d: Data, userId: string) {
   const members = [...d.na_members].sort((a, b) => a.joined_at.localeCompare(b.joined_at));
   const memberOf = new Map(members.map((m) => [m.user_id, m]));
   const me = memberOf.get(userId) as Member | undefined;
-  const stopsOf = (routeId: string | undefined) => (routeId ? d.na_stops.filter((s) => s.route_id === routeId).sort((a, b) => a.pos - b.pos).map(toUi) : []);
+  const stopsOf = (routeId: string | undefined) => {
+    if (!routeId) return [];
+    const mode = d.na_routes.find((r) => r.id === routeId)?.travel ?? "foot";
+    return d.na_stops.filter((s) => s.route_id === routeId).sort((a, b) => a.pos - b.pos).map((s) => toUi(s, mode));
+  };
   const shared = d.na_routes.find((r) => r.kind === "shared");
   const personal = d.na_routes.filter((r) => r.kind === "personal");
   const mine = personal.find((r) => r.owner_user === userId);
@@ -31,7 +35,7 @@ export type Derived = ReturnType<typeof derive>;
 export function addStopOps(route: Route, stops: UiStop[], eventId: string, extra: Partial<StopRow> = {}): Op[] {
   if (stops.some((s) => s.id === eventId)) return [];
   const pos = (stops.at(-1)?.pos ?? 0) + 1;
-  return [{ t: "insert", table: "na_stops", row: { id: newId(), night_id: route.night_id, route_id: route.id, pos, event_id: eventId, arrival: "", duration: 45, reason: "", practical: "", transfer: "", fixed: false, ...extra } }];
+  return [{ t: "insert", table: "na_stops", row: { id: newId(), night_id: route.night_id, route_id: route.id, pos, event_id: eventId, arrival: "", duration: route.stay ?? 45, reason: "", practical: "", transfer: "", fixed: false, ...extra } }];
 }
 
 /** Moves one stop to index `to` by giving it a position between its new neighbours: one row changes. */
@@ -59,6 +63,18 @@ export function rescheduleOps(stops: UiStop[], next: UiStop[]): Op[] {
 
 export const timingOps = (s: UiStop, arrival: string, duration: number): Op[] =>
   s.rowId ? [{ t: "update", table: "na_stops", id: s.rowId, patch: { arrival, duration } }] : [];
+export const legOps = (s: UiStop, travel: Mode | null): Op[] => (s.rowId ? [{ t: "update", table: "na_stops", id: s.rowId, patch: { travel } }] : []);
+/** The route's way of getting around, for every leg that hasn't picked its own. */
+export const travelOps = (route: Route, travel: Mode): Op[] => [{ t: "update", table: "na_routes", id: route.id, patch: { travel } }];
+/** A new time per stop: every stop still at the old standard length moves to the new one; stops given their own length
+ *  and fixed sessions keep theirs. */
+export function stayOps(route: Route, stops: UiStop[], stay: number): Op[] {
+  const old = route.stay ?? 45;
+  return [
+    { t: "update", table: "na_routes", id: route.id, patch: { stay } },
+    ...stops.filter((s) => s.rowId && !s.fixed && s.duration === old).map((s): Op => ({ t: "update", table: "na_stops", id: s.rowId!, patch: { duration: stay } })),
+  ];
+}
 export const maybeOps = (s: UiStop, maybe: boolean): Op[] => (s.rowId ? [{ t: "update", table: "na_stops", id: s.rowId, patch: { maybe } }] : []);
 export const removeOps = (s: UiStop): Op[] => (s.rowId ? [{ t: "delete", table: "na_stops", id: s.rowId }] : []);
 
@@ -70,7 +86,7 @@ export function personalRouteOps(nightId: string, userId: string, existing: Rout
   let pos = keep.at(-1)?.pos ?? 0;
   for (const s of stops) {
     if (keep.some((k) => k.id === s.id)) continue;
-    ops.push({ t: "insert", table: "na_stops", row: { id: newId(), night_id: nightId, route_id: routeId, pos: ++pos, event_id: s.id, arrival: s.arrival, duration: s.duration, reason: s.reason ?? "", practical: s.practical ?? "", transfer: s.transfer ?? "", fixed: !!s.fixed, maybe: !!s.maybe } });
+    ops.push({ t: "insert", table: "na_stops", row: { id: newId(), night_id: nightId, route_id: routeId, pos: ++pos, event_id: s.id, arrival: s.arrival, duration: s.duration, reason: s.reason ?? "", practical: s.practical ?? "", transfer: s.transfer ?? "", fixed: !!s.fixed, maybe: !!s.maybe, travel: s.travel ?? null } });
   }
   return { routeId, ops };
 }
@@ -79,6 +95,6 @@ export function personalRouteOps(nightId: string, userId: string, existing: Rout
 export function replaceRouteOps(route: Route, current: UiStop[], next: UiStop[]): Op[] {
   return [
     ...current.filter((s) => s.rowId).map((s): Op => ({ t: "delete", table: "na_stops", id: s.rowId! })),
-    ...next.map((s, i): Op => ({ t: "insert", table: "na_stops", row: { id: newId(), night_id: route.night_id, route_id: route.id, pos: i + 1, event_id: s.id, arrival: s.arrival, duration: s.duration, reason: s.reason ?? "", practical: s.practical ?? "", transfer: s.transfer ?? "", fixed: !!s.fixed, maybe: !!s.maybe } })),
+    ...next.map((s, i): Op => ({ t: "insert", table: "na_stops", row: { id: newId(), night_id: route.night_id, route_id: route.id, pos: i + 1, event_id: s.id, arrival: s.arrival, duration: s.duration, reason: s.reason ?? "", practical: s.practical ?? "", transfer: s.transfer ?? "", fixed: !!s.fixed, maybe: !!s.maybe, travel: s.travel ?? null } })),
   ];
 }

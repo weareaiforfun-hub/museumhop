@@ -361,3 +361,39 @@
 .detail-labels span{font-size:11.5px;font-weight:600;padding:5px 9px;border-radius:8px;border:1px solid var(--border);background:#fffefb}
 .detail-modal .official-detail{justify-content:space-between;text-decoration:none;background:#eef1e8;border-radius:9px;padding:11px 14px;font-weight:700;font-size:12.5px}
 @media(max-width:760px){.locate-button{top:104px;right:12px}.locate-off{right:58px;top:112px}.locate-note{right:12px;width:calc(100% - 24px)}.detail-cards{grid-template-columns:1fr}.gmaps-sheet{width:100%}.gmaps-button{font-size:12px}}
+/* Timeline settings: how you get around, time per stop, and a mode per leg */
+.tl-settings-line{display:none;width:100%;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--border);background:#fffefb;border-radius:9px;padding:9px 11px;font-size:12px;font-weight:700;margin-bottom:8px}
+.tl-settings-line>span{display:inline-flex;align-items:center;gap:6px}
+.tl-change{color:#4f5e58;font-weight:600}
+.tl-settings{display:flex;flex-direction:column;gap:9px;padding:10px 0;margin-bottom:12px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.tl-settings small{display:block;font-size:9px;letter-spacing:1.4px;font-weight:700;color:#4f5e58;text-transform:uppercase;margin-bottom:5px}
+.tl-seg{display:inline-flex;background:#eef1e8;border-radius:9px;padding:3px;gap:2px}
+.tl-seg button{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:30px;padding:0 10px;border-radius:7px;font-size:12px;font-weight:700;color:#4f5e58}
+.tl-seg button.on{background:#fffefb;color:var(--ink);box-shadow:0 1px 3px #0002}
+.tl-step{display:inline-flex;align-items:center;border:1px solid var(--border);background:#fffefb;border-radius:9px;min-height:36px}
+.tl-step button{display:grid;place-items:center;width:34px;height:34px;color:#4f5e58}
+.tl-step b{min-width:56px;text-align:center;font-size:13px}
+.tl-gain{color:#2d7a4f;font-weight:700}
+.tl-summary span.tl-wrap{white-space:normal}
+.tl-settings>div{display:flex;flex-direction:column}
+.tl-seg,.tl-step{align-self:flex-start}
+.tl-walk.bike{border-left:3px solid #2f6db5}
+.tl-walk.car{border-left:3px dashed #4f5e58}
+.tl-walk.bike span{color:#24548b}
+.tl-walk.car span{color:#3e4d47}
+.tl-leg-btn{cursor:pointer;display:inline-flex;align-items:center;gap:4px;border-radius:5px}
+.tl-walk .tl-leg-btn{padding:2px 5px;margin-left:-5px}
+.tl-walk .tl-leg-btn:hover{background:#0000000d}
+.tl-block .tl-leg-btn{text-decoration:underline dotted;text-underline-offset:2px;align-self:flex-start}
+.tl-leg-pop{position:absolute;right:4px;z-index:6;background:#fffefb;border-radius:10px;box-shadow:0 8px 24px #0003;padding:9px;display:flex;flex-direction:column;gap:7px;font-size:11px}
+.tl-leg-pop .tl-seg button{min-height:28px;padding:0 9px;font-size:11px}
+@media (max-width:760px){
+  .tl-settings-line{display:flex}
+  .tl-settings{display:none;border-top:0;padding-top:0}
+  .tl-settings.open{display:flex}
+  .tl-seg,.tl-step{align-self:stretch}
+  .tl-seg{display:flex}
+  .tl-seg button{flex:1;min-height:38px}
+  .tl-step{width:100%;justify-content:space-between}
+  .tl-step button{width:44px;height:40px}
+}
