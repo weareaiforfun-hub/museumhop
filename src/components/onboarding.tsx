@@ -30,7 +30,7 @@ const TOUR: Spot[] = [
   { view: "Our night", aside: "suggested", target: "[data-tour=suggested]", title: "Not sure where to start?", body: "Four ready-made routes with a reason for every stop. Preview one on the map, then use it as your group’s route." },
   { target: ".share-button", title: "Invite friends, or just show them", body: "The invite link lets friends plan with you, no account needed. Once your night exists, the same button gives a view-only link too: routes and times, no names, no editing." },
   { view: "Our night", aside: "route", target: ".route-list, .route-content, .itinerary", title: "Shape the route", body: "Drag a stop by its handle to move it. Tap its time to mark it Maybe: it stays in, greyed out. Timeline shows the walks and clashes (or bike or car), and Google Maps takes you there." },
-  { view: "Explore", target: ".spot-banner, .data-note .footer-link", title: "Your night, on any device", body: "Only the people in your night can see it. “Keep your spot” gives you a personal link that opens the night as you on another phone or laptop. Keep that one to yourself." },
+  { view: "Explore", target: ".spot-banner, .profile, .data-note .footer-link", title: "Your night, on any device", body: "Only the people in your night can see it. Once you’re in one, tap your name, then “Open on another device” to scan a code or email yourself a link. Keep that link to yourself." },
   { target: ".help-button", title: "Everything else is in here", body: "Crews and meet-ups, voting, calendar export and more: tap ? and open “What can I do?”. You can replay this tour from there." },
 ];
 
@@ -57,7 +57,7 @@ const FEATURES: Feature[] = [
   { group: "With your group", view: "Our night", aside: "decide", target: ".itinerary-tabs", needsNight: true, title: "Decide together", body: "Everyone’s reactions in one table, a vote on route ideas, and a draft route from the top picks." },
   { group: "With your group", view: "Our night", aside: "crews", target: ".itinerary-tabs", needsNight: true, title: "Split into crews", body: "Small groups with their own routes and meet-up points, all on one map." },
   { group: "With your group", view: "Our night", aside: "activity", target: ".itinerary-tabs", needsNight: true, title: "See who changed what", body: "The Activity tab lists every change. Your own changes can be undone from the message that appears." },
-  { group: "Your spot and your data", target: ".spot-banner, .profile", needsNight: true, title: "Keep your spot on any device", body: "Your personal link opens the night as you, with your reactions and routes, on a new phone, laptop or browser. Get it from “Keep your spot” or by tapping your name, and email it to yourself if you like: on a new device, “Get your link by email” sends a fresh one. Keep it private: it isn’t the invite link." },
+  { group: "Your spot and your data", target: ".device-button, .profile", needsNight: true, title: "Open your night on any device", body: "Tap your name, then “Open on another device”: scan the code, or email yourself a link. It opens the night as you, with your reactions and routes. Already on a new device? Open the invite link and choose “I’m already in this night”. Don’t join again: that adds a second you. Keep your link private." },
   { group: "Your spot and your data", view: "Explore", target: ".data-note .footer-link", title: "See what’s stored about you", body: "Your data explains who can see your night, what MuseumHop keeps (no ads or tracking cookies; only cookie-free usage counts), and that everything is deleted 30 days after the night." },
 ];
 const GROUPS = Array.from(new Set(FEATURES.map((f) => f.group)));
@@ -142,7 +142,7 @@ function Spotlight({ spot, step, steps, onBack, onNext, onJump, onClose }: { spo
 /** First-visit intro, the spotlight tour and the help drawer. `show` moves the app to the place a step needs. */
 export type HelpTab = "what" | "do" | "data";
 
-export function Onboarding({ show, inNight, helpOpen, setHelpOpen, helpTab }: { show: (p: Place) => void; inNight: boolean; helpOpen: boolean; setHelpOpen: (v: boolean) => void; helpTab?: HelpTab }) {
+export function Onboarding({ hold, show, inNight, helpOpen, setHelpOpen, helpTab }: { hold?: boolean; show: (p: Place) => void; inNight: boolean; helpOpen: boolean; setHelpOpen: (v: boolean) => void; helpTab?: HelpTab }) {
   const [slide, setSlide] = useState<number | null>(introSeen() ? null : 0);
   const [hint, setHint] = useState(false), [tour, setTour] = useState<number | null>(null), [single, setSingle] = useState<Spot | null>(null);
   const [tab, setTab] = useState<HelpTab>("what");
@@ -174,7 +174,7 @@ export function Onboarding({ show, inNight, helpOpen, setHelpOpen, helpTab }: { 
   function showMe(f: Spot) { track("show-me", { feature: f.title }); setHelpOpen(false); show(f); setSingle(f); }
 
   return <>
-    {slide !== null && <div className="intro-overlay" role="dialog" aria-modal="true" aria-label="Welcome to MuseumHop" onWheel={introFlip.onWheel} onTouchStart={introFlip.onTouchStart} onTouchEnd={introFlip.onTouchEnd}>
+    {slide !== null && !hold && <div className="intro-overlay" role="dialog" aria-modal="true" aria-label="Welcome to MuseumHop" onWheel={introFlip.onWheel} onTouchStart={introFlip.onTouchStart} onTouchEnd={introFlip.onTouchEnd}>
       <div className="intro-slide" key={slide}>
         {(() => { const S = SLIDES[slide], Icon = S.icon; return <>
           <span className="intro-icon"><Icon size={26} /></span>

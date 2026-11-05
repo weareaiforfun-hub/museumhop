@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Accessibility, ArrowUpRight, Bus, Check, Navigation, NavigationOff, KeyRound, ChevronRight, Clock, Compass, Mail, Map as MapIcon, MapPin, Moon, Plus, Route, Search, Share2, Sparkles, Star, Utensils, Undo2, X } from "lucide-react";
+import { Accessibility, ArrowUpRight, Bus, Check, Navigation, NavigationOff, KeyRound, ChevronRight, Clock, Compass, Mail, Map as MapIcon, MapPin, MonitorSmartphone, Moon, Plus, Route, Search, Share2, Sparkles, Star, Utensils, Undo2, X } from "lucide-react";
 import { activities, byId, byMuseum, COLORS, FOOD, initials, items, minute, warnings, type Item, type UiStop } from "./lib/catalogue";
 import { addStopOps, derive, personalRouteOps, replaceRouteOps, rescheduleOps, useSync } from "./lib/night";
 import { newId, sync, type Op } from "./lib/sync";
@@ -13,7 +13,7 @@ import { ShareDialog } from "./components/share-dialog";
 import { Crews } from "./components/crews";
 import { BrandMark } from "./components/brand-mark";
 import { CONTACT, HelpButton, MAKER, introSeen, Onboarding, type HelpTab, type Place } from "./components/onboarding";
-import { KeepSpot, RecoverByEmail } from "./components/keep-spot";
+import { BackupNudge, KeepSpot, OtherDevice, RecoverByEmail, TwoDoors, YourSpot } from "./components/keep-spot";
 import { GettingAround, RideCard } from "./components/getting-around";
 import { MODES } from "./data/transport";
 import exampleIdeas from "./data/route-ideas.json";
@@ -45,7 +45,7 @@ export default function App() {
   const [asideMode, setAsideMode] = useState<Aside>("route"), [previewId, setPreviewId] = useState<string | null>(null);
   const [category, setCategory] = useState("Activities"), [query, setQuery] = useState(""), [tag, setTag] = useState("All types"), [view, setView] = useState("Explore"), [suggestedOnly, setSuggestedOnly] = useState(false), [wheelchair, setWheelchair] = useState(false), [personFilter, setPersonFilter] = useState("all");
   const [invite, setInvite] = useState(""), [nightId, setNightId] = useState(""), [resolving, setResolving] = useState(false);
-  const [spotOpen, setSpotOpen] = useState(false), [switchLink, setSwitchLink] = useState(false), [, setLinkMade] = useState(0);
+  const [spotOpen, setSpotOpen] = useState(false), [menuOpen, setMenuOpen] = useState(false), [deviceOpen, setDeviceOpen] = useState(false), [nudgeOpen, setNudgeOpen] = useState(false), [doorChosen, setDoorChosen] = useState(false), [switchLink, setSwitchLink] = useState(false), [, setLinkMade] = useState(0);
   const loc = useLocation(), [locateTick, setLocateTick] = useState(0), [gmapsOpen, setGmapsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false), [emailReady, setEmailReady] = useState(false), [recoverOpen, setRecoverOpen] = useState(false);
   useEffect(() => { sync?.emailReady().then(setEmailReady); }, []);
@@ -106,15 +106,17 @@ export default function App() {
   useEffect(() => { if (nightId && sync) sync.open(nightId, { name: pref("na:name"), color: pref("na:color") }).catch((e) => setError(e.message)); }, [nightId]);
   useEffect(() => sync?.onNotice((n) => (n.kind === "error" ? setError(n.text) : setToast(n.text))), []);
   useEffect(() => { sync?.ready.then(() => { if (sync!.linkProblem) setError(sync!.linkProblem); if (sync!.pendingLink) setSwitchLink(true); }); }, []);
-  /* Members whose spot lives in this browser only get asked once to keep it; the banner stays until they do. */
   const hasLink = !!identity && !!sync?.savedPersonalLink();
+  /* Once someone has started planning, offer once to back up their spot by email; the banner stays until they do. */
+  const backedUp = !!identity && !!sync?.backedUp();
+  const planned = !!data && (data.na_reactions.some((r) => r.user_id === userId) || data.na_stops.some((s) => s.updated_by === userId));
   useEffect(() => {
-    if (!identity || hasLink || !introSeen()) return;
-    const asked = "na:spot-asked:" + userId;
+    if (!identity || backedUp || !planned || !emailReady || !introSeen()) return;
+    const asked = "na:backup-asked:" + userId;
     if (pref(asked)) return;
-    setPref(asked, "1");
-    setSpotOpen(true);
-  }, [identity?.id, hasLink]);
+    const t = setTimeout(() => { setPref(asked, "1"); setNudgeOpen(true); track("backup-nudge"); }, 1500);
+    return () => clearTimeout(t);
+  }, [identity?.id, backedUp, planned, emailReady]);
   useEffect(() => { if (identity) sync?.updatePresence({ name: identity.display_name, color: identity.color }); }, [identity?.display_name, identity?.color]);
 
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(""), 4500); return () => clearTimeout(t); }, [toast]);
@@ -258,7 +260,6 @@ export default function App() {
       setNameDialog(false); setAsideMode("personal"); setTarget("personal"); setPreviewId(null);
       track(invite ? "night-join" : "night-create", { via: pendingSuggestion ? "suggested" : "start" });
       setToast(invite ? "You joined the night." : "Your night is ready. Invite your friends!");
-      setPref("na:spot-asked:" + sync.userId, "1"); setSpotOpen(true);
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
@@ -299,6 +300,10 @@ export default function App() {
   const nextItem = nextIndex >= 0 ? byId.get(mapRoute[nextIndex].id) : undefined;
   const nextWalk = nextItem && loc.spot ? walkFrom(loc.spot, nextItem.museumId) : null;
   const loading = (resolving || !!nightId) && !night?.members.length && status?.conn !== "offline";
+  /* An invite link on a device that doesn't know you: ask first, because joining again makes a second you. The intro waits. */
+  const doorPending = /[#&]night=/.test(location.hash) && !identity && !doorChosen;
+  const doors = doorPending && !!invite && !loading;
+  const emailLink = async (address: string) => { const made = await sync!.emailMyLink(address, invite); setLinkMade((n) => n + 1); return made; };
 
   const joinForm = (
     <form className="join-form" onSubmit={(e) => { e.preventDefault(); enter(); }}>
@@ -320,7 +325,8 @@ export default function App() {
       <div className="event-date"><span className="live-dot" />SAT 7 NOV 2026<span className="date-divider" />19:00 — 02:00<span className="tagline">Find your favourites. Bring your people.</span></div>
       <div className="header-actions">
         {invite && !identity && !loading && <button className="secondary join-button" onClick={() => setNameDialog(true)}>Join this night</button>}
-        {identity && <button className="profile" data-track="Your name" onClick={() => { setName(identity.display_name); setColor(identity.color); setNameDialog(true); }}><span className="avatar" style={{ background: identity.color, color: "#fff" }}>{initials(identity.display_name)}</span><span>{identity.display_name}</span></button>}
+        {identity && <button className="secondary device-button" onClick={() => setDeviceOpen(true)}><MonitorSmartphone size={15} /><span>Open on another device</span></button>}
+        {identity && <button className="profile" data-track="Your name" onClick={() => setMenuOpen(true)}><span className="avatar" style={{ background: identity.color, color: "#fff" }}>{initials(identity.display_name)}</span><span>{identity.display_name}</span></button>}
         <a href="https://museumnacht.amsterdam/programma" target="_blank" rel="noreferrer" className="source-link">Official programme<ArrowUpRight size={14} /></a>
         <HelpButton onClick={() => { setHelpTab("what"); setHelpOpen(true); }} />
         <button className="primary share-button" aria-label={invite ? "Invite friends" : "Plan with friends"} onClick={share}><Share2 size={16} /><span>{invite ? "Invite friends" : "Plan with friends"}</span></button>
@@ -407,7 +413,7 @@ export default function App() {
           <button className={asideMode !== "suggested" ? "active" : ""} onClick={() => { setAsideMode("route"); setPreviewId(null); }}>{invite ? "Join" : "Start"}</button>
           <button data-tour="suggested" className={asideMode === "suggested" ? "active" : ""} onClick={() => { setAsideMode("suggested"); setPreviewId(null); }}>Suggested routes <span>{SUGGESTED.length}</span></button>
         </nav>}
-        {identity && !hasLink && <button className="spot-banner" onClick={() => setSpotOpen(true)}><KeyRound size={15} /><span>Only saved in this browser</span><b>Keep your spot</b></button>}
+        {identity && !backedUp && <button className="spot-banner" onClick={() => setSpotOpen(true)}><KeyRound size={15} /><span>Only on this device so far</span><b>Fix this</b></button>}
         {loading ? <div className="start-plan"><div className="illustration"><Moon size={38} /></div><h3>Loading your night…</h3></div>
         : asideMode === "personal" && identity && routeView === "timeline" && myRoute.length ? <section className="personal-route"><h3>My route</h3>{viewToggle}
             <Timeline stops={myRoute} title={night?.mine?.title || "My route"} onPick={pick} onPropose={proposeMine} onPreview={(p) => { setPreviewStops(p); if (p) setFit((f) => f + 1); }}
@@ -427,7 +433,7 @@ export default function App() {
         : asideMode === "crews" && data && night ? <Crews data={data} night={night} userId={userId} canWrite={canEditShared} shared={route} run={run} onPick={pick}
             onChooseStops={() => { setTarget("crew"); setView("Explore"); }} onPreview={(p) => { setPreviewStops(p); if (p) setFit((f) => f + 1); }} onPropose={proposeMine} routeView={routeView} toggle={viewToggle} />
         : asideMode === "activity" && data && night ? <section className="activity-panel"><div className="group-strip"><div><strong>What changed</strong><SyncPill status={status} /></div></div><ActivityFeed data={data} night={night} /></section>
-        : !identity ? <div className="start-plan"><div className="illustration"><Moon size={38} /><Sparkles size={20} /></div><h3>{invite ? "Your friends are planning a night." : "Good nights start with good company."}</h3><p>{invite ? "Add your name to join in." : "Create your group, then send the invite link to your friends."}</p>{!nameDialog && joinForm}<button className="text-button suggested-teaser" onClick={() => setAsideMode("suggested")}>Or start from one of {SUGGESTED.length} suggested routes<ChevronRight size={15} /></button>{emailReady && <button className="text-button suggested-teaser" onClick={() => setRecoverOpen(true)}>Already in a night on another device? Get your link by email<ChevronRight size={15} /></button>}</div>
+        : !identity ? <div className="start-plan"><div className="illustration"><Moon size={38} /><Sparkles size={20} /></div><h3>{invite ? "Your friends are planning a night." : "Good nights start with good company."}</h3><p>{invite ? "Add your name to join in." : "Create your group, then send the invite link to your friends."}</p>{!nameDialog && joinForm}<button className="text-button suggested-teaser" onClick={() => setAsideMode("suggested")}>Or start from one of {SUGGESTED.length} suggested routes<ChevronRight size={15} /></button><button className="text-button suggested-teaser" onClick={() => setRecoverOpen(true)}>Already in a night on another device? Get back in<ChevronRight size={15} /></button></div>
         : <>
           <div className="group-strip">
             <div className="avatar-stack">{realMembers.slice(0, 5).map((m) => <span className="avatar" title={m.display_name} key={m.id} style={{ background: m.color, color: "#fff" }}>{initials(m.display_name)}</span>)}</div>
@@ -477,15 +483,21 @@ export default function App() {
       {suggesters(selected.id).length > 0 && <div className="detail-suggestions">{suggesters(selected.id).map((s) => <p key={s.member_id}><b>{nameOf(s.member_id)}</b> · {REACTIONS.find((x) => x.key === s.reaction)!.label}{s.note ? ": " + s.note : ""}</p>)}</div>}
       {selected.id.startsWith("museum:") && <div className="museum-activities"><h3>What’s on here</h3>{activities.filter((e) => e.museumId === selected.museumId).map((e) => <button key={e.id} onClick={() => pick(e)}><span>{e.title}<small>{e.time} · {e.tags.join(" · ")}</small></span><ChevronRight size={16} /></button>)}</div>}
     </section></div>}
-    <Onboarding inNight={!!identity} helpOpen={helpOpen} setHelpOpen={setHelpOpen} helpTab={helpTab} show={(p: Place) => {
+    <Onboarding hold={doorPending || recoverOpen || nameDialog} inNight={!!identity} helpOpen={helpOpen} setHelpOpen={setHelpOpen} helpTab={helpTab} show={(p: Place) => {
       setSelected(null); setPreviewId(null);
       if (p.view) setView(p.view);
       if (p.aside && (identity || p.aside === "route" || p.aside === "suggested")) setAsideMode(p.aside);
     }} />
     {spotOpen && identity && sync && <KeepSpot name={identity.display_name} nightName={night?.night?.name ?? "this night"} saved={sync.savedPersonalLink()}
       onCreate={async () => { const link = await sync!.newPersonalLink(invite); setLinkMade((n) => n + 1); return link; }} onClose={() => setSpotOpen(false)}
-      emailReady={emailReady} onEmail={async (address) => { const made = await sync!.emailMyLink(address, invite); setLinkMade((n) => n + 1); return made; }} />}
-    {recoverOpen && sync && <RecoverByEmail onSend={(address) => sync!.recoverByEmail(address)} onClose={() => setRecoverOpen(false)} />}
+      emailReady={emailReady} onEmail={emailLink} onSaved={() => sync!.markBackedUp()} />}
+    {menuOpen && identity && <YourSpot name={identity.display_name} backedUp={backedUp} onClose={() => setMenuOpen(false)} onOtherDevice={() => { setMenuOpen(false); setDeviceOpen(true); }} onLink={() => { setMenuOpen(false); setSpotOpen(true); }}
+      onName={() => { setMenuOpen(false); setName(identity.display_name); setColor(identity.color); setNameDialog(true); }} />}
+    {deviceOpen && identity && sync && <OtherDevice name={identity.display_name} saved={sync.savedPersonalLink()} emailReady={emailReady} onEmail={emailLink} onSaved={() => sync!.markBackedUp()} onClose={() => setDeviceOpen(false)}
+      onCreate={async () => { const link = await sync!.newPersonalLink(invite); setLinkMade((n) => n + 1); return link; }} />}
+    {nudgeOpen && !menuOpen && !spotOpen && !deviceOpen && <BackupNudge onEmail={emailLink} onClose={() => setNudgeOpen(false)} />}
+    {doors && <TwoDoors onNew={() => { setDoorChosen(true); setNameDialog(true); }} onBack={() => { setDoorChosen(true); setRecoverOpen(true); track("get-back-in"); }} onLook={() => setDoorChosen(true)} />}
+    {recoverOpen && sync && <RecoverByEmail emailReady={emailReady} onSend={(address) => sync!.recoverByEmail(address)} onClose={() => setRecoverOpen(false)} />}
     {gmapsOpen && <GoogleMapsSheet stops={gmaps.stops} title={gmaps.title} onClose={() => setGmapsOpen(false)} />}
     {shareOpen && identity && invite && <ShareDialog invite={invite} nightId={identity.night_id} canPlan={identity.role !== "viewer"} onClose={() => setShareOpen(false)} />}
     {switchLink && sync?.pendingLink && <div className="modal-backdrop"><section className="name-modal" role="dialog" aria-modal="true" aria-label="Open this personal link?">
@@ -497,7 +509,6 @@ export default function App() {
     {nameDialog && <div className="modal-backdrop" onClick={() => setNameDialog(false)}><section className="name-modal" role="dialog" aria-modal="true" aria-label={identity ? "Your name" : "Join the night"} onClick={(e) => e.stopPropagation()}>
       <button className="modal-close" aria-label="Close" onClick={() => setNameDialog(false)}><X size={20} /></button><Moon size={32} />
       <h2>{identity ? "Your name" : invite ? "Join your friends" : "Start your shared night"}</h2>
-      {identity && <button className="text-button spot-link-button" onClick={() => { setNameDialog(false); setSpotOpen(true); }}><KeyRound size={13} />Your personal link: keep your spot on any device</button>}
       <p>{identity ? "This is how your name appears to the group." : "A name, an invite link, and a whole city to explore."}</p>
       {error && <p className="dialog-error" role="alert">{error}</p>}{joinForm}
     </section></div>}

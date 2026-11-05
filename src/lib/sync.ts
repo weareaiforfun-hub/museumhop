@@ -135,6 +135,7 @@ export class NightSync {
     try {
       localStorage.removeItem("na:nights"); // belonged to whoever this browser was before
       if (token) localStorage.setItem("na:me:" + this.userId, `${location.origin}${location.pathname}#night=${token}&me=${link.uid}.${link.secret}`);
+      localStorage.setItem("na:backed:" + this.userId, "1"); // the link that brought me here lives elsewhere too
     } catch { /* private mode */ }
     return this.userId;
   }
@@ -163,11 +164,15 @@ export class NightSync {
     await this.ready;
     const out = await this.email({ action: "send", email: address, token, link: this.savedPersonalLink() });
     if (out.link) try { localStorage.setItem("na:me:" + this.userId, out.link); } catch { /* shown once */ }
+    this.markBackedUp();
     return out.link ?? "";
   }
   /** Asks for new personal links to be emailed to an address on file. Always answers the same way. */
   async recoverByEmail(address: string) { await this.email({ action: "recover", email: address }); }
   savedPersonalLink() { try { return localStorage.getItem("na:me:" + this.userId) ?? ""; } catch { return ""; } }
+  /** Whether "me" also exists outside this browser: my link was emailed, copied or used, or I'm open on another device. */
+  backedUp() { try { return !!localStorage.getItem("na:backed:" + this.userId); } catch { return false; } }
+  markBackedUp() { try { localStorage.setItem("na:backed:" + this.userId, "1"); } catch { /* private mode */ } this.emit(); }
   /** The night an invite token opens, if I'm already in it (e.g. on a device a personal link signed in). */
   async memberNight(token: string) {
     if (!(await this.ready)) return "";
@@ -240,6 +245,7 @@ export class NightSync {
       const seen = new Map<string, Status["here"][number]>();
       for (const metas of Object.values(ch.presenceState<{ userId: string; name: string; color: string }>())) for (const m of metas) seen.set(m.userId, { userId: m.userId, name: m.name, color: m.color });
       this.status = { ...this.status, here: [...seen.values()] };
+      if ((ch.presenceState()[this.userId]?.length ?? 0) > 1 && !this.backedUp()) this.markBackedUp();
       this.emit();
     });
     let wasLive = false;
@@ -332,7 +338,7 @@ export class NightSync {
 
   private applyLocal(op: Op) {
     const list = this.data[op.table] as Record<string, unknown>[];
-    if (op.t === "insert") (this.data[op.table] as unknown[]) = [...list.filter((x) => x.id !== op.row.id), { ...op.row }];
+    if (op.t === "insert") (this.data[op.table] as unknown[]) = [...list.filter((x) => x.id !== op.row.id), { updated_by: this.userId, ...op.row }];
     else if (op.t === "update") (this.data[op.table] as unknown[]) = list.map((x) => (x.id === op.id ? { ...x, ...op.patch } : x));
     else (this.data[op.table] as unknown[]) = list.filter((x) => x.id !== op.id);
   }

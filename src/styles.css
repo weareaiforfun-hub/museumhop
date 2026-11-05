@@ -414,3 +414,25 @@
 .spot-guide ol{margin:0;padding-left:20px;display:grid;gap:6px}
 .spot-guide li b,.spot-guide p b{color:var(--ink)}
 .spot-guide-warn{background:#fbeae5;border-radius:9px;padding:9px 11px}
+
+/* Getting back in, and moving to another device */
+.keep-spot .spot-option>.secondary{min-height:46px;margin:0;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;text-align:center}
+.door-look{align-self:center;margin:0;font-size:12px;min-height:36px}
+.spot-guide-warn{margin:0;font-size:12.5px;line-height:1.45;color:#7c2d1c}
+.spot-guide-warn b{color:#7c2d1c}
+.spot-scan{display:flex;gap:14px;align-items:center}
+.spot-scan p{margin:0;font-size:13px;line-height:1.5;color:#4f5e58}
+.spot-qr{flex:none;width:148px;height:148px;padding:8px;box-sizing:border-box;background:#fff;border:1px solid var(--border);border-radius:10px}
+.spot-qr svg{display:block;width:100%;height:100%}
+.spot-risk{border-color:#efc3b7;background:#fbeae5}
+.spot-row{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 12px;border:1px solid var(--border);border-radius:10px;background:#fffefb;color:var(--ink);font:700 13px 'DM Sans',sans-serif;text-align:left;cursor:pointer}
+.spot-row span{flex:1}
+.spot-row:hover{border-color:var(--ink)}
+.device-button{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;margin:0;font-size:12px;white-space:nowrap;flex-shrink:0}
+.backup-nudge{position:fixed;right:20px;bottom:20px;z-index:60;width:min(380px,calc(100vw - 24px));background:#fffefb;border-radius:16px;box-shadow:0 12px 40px #0003;padding:18px;box-sizing:border-box;display:flex;flex-direction:column;gap:9px;color:var(--ink)}
+.backup-nudge h2{font-family:Manrope,sans-serif;font-size:19px;letter-spacing:-.4px;line-height:1.2;margin:0;padding-right:24px}
+.backup-nudge>p{margin:0;font-size:13px;line-height:1.5;color:#4f5e58}
+.backup-nudge .spot-tag{align-self:flex-start}
+@media(max-width:1440px){.topbar:has(.device-button) .tagline{display:none}}
+@media(max-width:1100px){.device-button span{display:none}}
+@media(max-width:760px){.device-button{display:none}.backup-nudge{left:0;right:0;bottom:0;width:100%;border-radius:18px 18px 0 0;padding-bottom:calc(16px + env(safe-area-inset-bottom))}.spot-scan{flex-direction:column;align-items:flex-start}}
