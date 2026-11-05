@@ -78,6 +78,18 @@ export function RecoverByEmail({ onSend, onClose }: { onSend: (address: string) 
         </form>
         {error && <p className="dialog-error" role="alert">{error}</p>}
       </>}
+      <div className="spot-guide">
+        <b>Never added an email?</b>
+        <p>Then you don’t have one saved yet. Do this once, on the device you planned on:</p>
+        <ol>
+          <li>Open MuseumHop in that browser and go to your night.</li>
+          <li>Tap your name or initials at the top, then <b>Your personal link</b>. If you see <b>Keep your spot</b>, tap that instead.</li>
+          <li>Under <b>Email me my link</b>, enter your email and tap <b>Send</b>.</li>
+          <li>Open the email here, on this device, and tap the button. You’re in as yourself.</li>
+        </ol>
+        <p>Rather not use email? Copy your personal link there and send it to yourself.</p>
+        <p className="spot-guide-warn"><b>Don’t join the night again here.</b> That adds a second you, without your reactions or your route.</p>
+      </div>
     </section>
   </div>;
 }

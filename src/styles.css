@@ -406,3 +406,11 @@
 .detail-access svg{flex:none;margin-top:1px}
 .detail-access p{margin:0;font-size:12px;line-height:1.45;color:#4f5e58}
 .detail-access b{display:block;font-size:13px;color:var(--ink)}
+
+/* Recovery dialog: how to get a link when no email was ever saved */
+.spot-guide{border:1px solid var(--border);border-radius:14px;padding:14px;background:#fffefb;display:flex;flex-direction:column;gap:8px;font-size:13px;line-height:1.5;color:#4f5e58}
+.spot-guide>b{font-size:15px;color:var(--ink)}
+.spot-guide p{margin:0;font-size:13px;line-height:1.5;color:#4f5e58}
+.spot-guide ol{margin:0;padding-left:20px;display:grid;gap:6px}
+.spot-guide li b,.spot-guide p b{color:var(--ink)}
+.spot-guide-warn{background:#fbeae5;border-radius:9px;padding:9px 11px}
