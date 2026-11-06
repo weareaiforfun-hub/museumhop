@@ -63,9 +63,11 @@
     }
     </script>
     <!-- Self-hosted, cookie-free analytics (stats.arian-shafa.xyz). ?notrack=1 excludes your own browser. The address
-       fragment (invite tokens, personal links) is never sent: data-exclude-hash. No session recording. -->
+       fragment (invite tokens, personal links) is never sent: data-exclude-hash. Of the query string only the utm_* campaign
+       tags are sent (keepCampaignTags); anything else after the ? is dropped. No session recording. -->
   <script>(()=>{const q=new URLSearchParams(location.search).get('notrack');if(q===null)return;try{q==='0'?localStorage.removeItem('umami.disabled'):localStorage.setItem('umami.disabled','1');}catch(e){}const u=new URL(location.href);u.searchParams.delete('notrack');history.replaceState(history.state,'',u.pathname+u.search+u.hash);})();</script>
-  <script defer src="https://stats.arian-shafa.xyz/script.js" data-website-id="60baa63a-e856-458d-bccc-7700537a7803" data-domains="museumhop.arian-shafa.xyz" data-exclude-search="true" data-exclude-hash="true" data-performance="true"></script>
+  <script>window.keepCampaignTags=(type,p)=>{if(!p)return p;const clean=(v,keep)=>{if(!v||!v.includes('?'))return v;const[base,query]=v.split('?');const q=new URLSearchParams(query);const k=new URLSearchParams();if(keep)q.forEach((val,n)=>{if(/^utm_(source|medium|campaign|content|term)$/.test(n))k.append(n,val);});const out=k.toString();return out?base+'?'+out:base;};try{p.url=clean(p.url,true);p.referrer=clean(p.referrer,false);}catch(e){return{...p,url:String(p.url).split('?')[0],referrer:String(p.referrer||'').split('?')[0]};}return p;};</script>
+  <script defer src="https://stats.arian-shafa.xyz/script.js" data-website-id="60baa63a-e856-458d-bccc-7700537a7803" data-domains="museumhop.arian-shafa.xyz" data-before-send="keepCampaignTags" data-exclude-hash="true" data-performance="true"></script>
   <script>(() => {
 const T = (n, d) => { try { window.umami && window.umami.track(n, d); } catch (e) {} };
 const txt = el => (el && (el.getAttribute('data-track') || el.getAttribute('aria-label') || el.textContent) || '').replace(/\s+/g, ' ').trim().slice(0, 60);
