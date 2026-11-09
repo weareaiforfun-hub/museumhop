@@ -22,6 +22,7 @@ import { track } from "./lib/track";
 import { liveStatus, mapsNext, nextStop, useLocation, walkFrom } from "./lib/location";
 import { GoogleMapsSheet } from "./components/google-maps";
 import { ActivityInfo } from "./components/activity-info";
+import { bannerOff, markNextSeen, nextSeen, NextBanner, WhatsNext } from "./components/whats-next";
 
 type Aside = "route" | "personal" | "ideas" | "suggested" | "decide" | "crews" | "activity";
 
@@ -55,6 +56,8 @@ export default function App() {
   const [routeView, setRouteView] = useState<"list" | "timeline">("list"), [previewStops, setPreviewStops] = useState<UiStop[] | null>(null);
   const openedIdeas = useRef(false);
   const [pendingSuggestion, setPendingSuggestion] = useState<string | null>(null), [helpOpen, setHelpOpen] = useState(false), [helpTab, setHelpTab] = useState<HelpTab>("what");
+  /* After the night: "what's next" once as a pop-up (it replaces the intro for first-time visitors), then as a banner. */
+  const [nextAtStart] = useState(() => !nextSeen()), [nextState, setNextState] = useState<"wait" | "open" | "closed">(() => (nextSeen() ? "closed" : "wait")), [nextBanner, setNextBanner] = useState(() => !bannerOff());
   const [ridesOpen, setRidesOpen] = useState(false), [layers, setLayers] = useState(() => new Set(MODES.filter((m) => m.on).map((m) => m.id)));
   const [hideVenues, setHideVenues] = useState(false), [ride, setRide] = useState<{ mode: string; stop: number } | null>(null);
   const shownModes = useMemo(() => (ridesOpen ? MODES.filter((m) => layers.has(m.id)) : []), [ridesOpen, layers]);
@@ -111,12 +114,12 @@ export default function App() {
   const backedUp = !!identity && !!sync?.backedUp();
   const planned = !!data && (data.na_reactions.some((r) => r.user_id === userId) || data.na_stops.some((s) => s.updated_by === userId));
   useEffect(() => {
-    if (!identity || backedUp || !planned || !emailReady || !introSeen()) return;
+    if (!identity || backedUp || !planned || !emailReady || !introSeen() || nextState !== "closed") return;
     const asked = "na:backup-asked:" + userId;
     if (pref(asked)) return;
     const t = setTimeout(() => { setPref(asked, "1"); setNudgeOpen(true); track("backup-nudge"); }, 1500);
     return () => clearTimeout(t);
-  }, [identity?.id, backedUp, planned, emailReady]);
+  }, [identity?.id, backedUp, planned, emailReady, nextState]);
   useEffect(() => { if (identity) sync?.updatePresence({ name: identity.display_name, color: identity.color }); }, [identity?.display_name, identity?.color]);
 
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(""), 4500); return () => clearTimeout(t); }, [toast]);
@@ -303,6 +306,10 @@ export default function App() {
   /* An invite link on a device that doesn't know you: ask first, because joining again makes a second you. The intro waits. */
   const doorPending = /[#&]night=/.test(location.hash) && !identity && !doorChosen;
   const doors = doorPending && !!invite && !loading;
+  useEffect(() => {
+    if (nextState !== "wait" || doorPending || recoverOpen || nameDialog || switchLink || loading || helpOpen) return;
+    markNextSeen(); setNextState("open"); track("next-popup");
+  }, [nextState, doorPending, recoverOpen, nameDialog, switchLink, loading, helpOpen]);
   const emailLink = async (address: string) => { const made = await sync!.emailMyLink(address, invite); setLinkMade((n) => n + 1); return made; };
 
   const joinForm = (
@@ -332,6 +339,7 @@ export default function App() {
         <button className="primary share-button" aria-label={invite ? "Invite friends" : "Plan with friends"} onClick={share}><Share2 size={16} /><span>{invite ? "Invite friends" : "Plan with friends"}</span></button>
       </div>
     </header>
+    {nextState === "closed" && nextBanner && <NextBanner onOpen={() => setNextState("open")} onHide={() => setNextBanner(false)} />}
     <nav className="mobile-nav" aria-label="Planner views">{([["Explore", Compass], ["Map", MapIcon], ["Our night", Route]] as const).map(([n, Icon]) => <button className={view === n ? "active" : ""} key={n} onClick={() => setView(n)}><Icon size={17} />{n}</button>)}</nav>
     {error && <div className="error-banner" role="alert">{error}<button aria-label="Dismiss error" onClick={() => setError("")}><X size={16} /></button></div>}
     <div className={"workspace mobile-" + view.replace(" ", "-").toLowerCase()}>
@@ -483,7 +491,8 @@ export default function App() {
       {suggesters(selected.id).length > 0 && <div className="detail-suggestions">{suggesters(selected.id).map((s) => <p key={s.member_id}><b>{nameOf(s.member_id)}</b> · {REACTIONS.find((x) => x.key === s.reaction)!.label}{s.note ? ": " + s.note : ""}</p>)}</div>}
       {selected.id.startsWith("museum:") && <div className="museum-activities"><h3>What’s on here</h3>{activities.filter((e) => e.museumId === selected.museumId).map((e) => <button key={e.id} onClick={() => pick(e)}><span>{e.title}<small>{e.time} · {e.tags.join(" · ")}</small></span><ChevronRight size={16} /></button>)}</div>}
     </section></div>}
-    <Onboarding hold={doorPending || recoverOpen || nameDialog} inNight={!!identity} helpOpen={helpOpen} setHelpOpen={setHelpOpen} helpTab={helpTab} show={(p: Place) => {
+    {nextState === "open" && <WhatsNext paused={helpOpen} onClose={() => setNextState("closed")} onYourData={() => { setHelpTab("data"); setHelpOpen(true); }} />}
+    <Onboarding hold={doorPending || recoverOpen || nameDialog || nextState === "open"} skipIntro={nextAtStart} inNight={!!identity} helpOpen={helpOpen} setHelpOpen={setHelpOpen} helpTab={helpTab} show={(p: Place) => {
       setSelected(null); setPreviewId(null);
       if (p.view) setView(p.view);
       if (p.aside && (identity || p.aside === "route" || p.aside === "suggested")) setAsideMode(p.aside);
