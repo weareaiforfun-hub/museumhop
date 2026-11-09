@@ -436,3 +436,33 @@
 @media(max-width:1440px){.topbar:has(.device-button) .tagline{display:none}}
 @media(max-width:1100px){.device-button span{display:none}}
 @media(max-width:760px){.device-button{display:none}.backup-nudge{left:0;right:0;bottom:0;width:100%;border-radius:18px 18px 0 0;padding-bottom:calc(16px + env(safe-area-inset-bottom))}.spot-scan{flex-direction:column;align-items:flex-start}}
+/* After the night: "what's next" pop-up with the wish box, and the slim banner on later visits (components/whats-next.tsx) */
+.wn-backdrop{background:#183b357a}
+.wn-card{position:relative;width:min(500px,100%);max-height:calc(100dvh - 32px);overflow-y:auto;background:#fffefb;border:1px solid var(--border);border-radius:22px;box-shadow:0 14px 40px #183b3540;padding:22px;color:var(--ink);font-family:'DM Sans',sans-serif}
+.wn-x{position:absolute;right:12px;top:12px;width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:#fffefb;display:grid;place-items:center;color:var(--ink)}
+.wn-form,.wn-thanks{display:flex;flex-direction:column;gap:12px}
+.wn-tag{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:14px;background:var(--lime);font-size:13px;font-weight:700;align-self:flex-start}
+.wn-card h2{margin:0;padding-right:44px;font-size:24px;line-height:1.12;font-weight:800;letter-spacing:-.4px}
+.wn-p,.wn-thanks p{margin:0;font-size:16px;line-height:1.45;color:#2b4a44}
+.wn-card a{font-weight:700;text-decoration:underline;text-underline-offset:3px;display:inline-flex;align-items:center;gap:2px}
+.wn-wish{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;min-width:0}
+.wn-wish legend{padding:0;margin-bottom:10px;font-size:17px;font-weight:700}
+.wn-chips{display:flex;flex-wrap:wrap;gap:8px}
+.wn-chips button{min-height:40px;display:inline-flex;align-items:center;gap:5px;padding:0 14px;border-radius:20px;border:1.5px solid #c9d0c6;font-size:14.5px;font-weight:500;background:#fffefb;color:var(--ink)}
+.wn-chips button.on{background:var(--ink);color:#fffefb;border-color:var(--ink)}
+.wn-wish textarea,.wn-wish input{width:100%;border:1.5px solid #c9d0c6;border-radius:14px;padding:12px 14px;font:16px/1.4 'DM Sans',sans-serif;color:var(--ink);background:#fff;resize:vertical}
+.wn-wish textarea{min-height:84px}.wn-wish input{height:52px}
+.wn-wish textarea:focus,.wn-wish input:focus{outline:2px solid var(--ink);outline-offset:1px;border-color:var(--ink)}
+.wn-hp{position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;opacity:0}
+.wn-btn{min-height:52px;border-radius:14px;border:none;background:var(--ink);color:#fffefb;font:700 16px 'DM Sans',sans-serif;width:100%}
+.wn-btn:disabled{opacity:.45;cursor:not-allowed}
+.wn-small{margin:0;font-size:13px;line-height:1.4;color:#5b5850}
+.wn-inline{padding:0;font:inherit;color:var(--ink);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.wn-check{width:56px;height:56px;border-radius:50%;background:var(--lime);display:grid;place-items:center}
+.wn-link{align-self:center;display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:15px;font-weight:700;text-decoration:underline;text-underline-offset:3px;color:var(--ink)}
+.wn-banner{display:flex;align-items:center;gap:10px;padding:0 10px 0 30px;min-height:44px;background:var(--lime);color:var(--ink);font-size:13px;border-bottom:1px solid #cfdc9a}
+.wn-banner-main{flex:1;display:flex;align-items:center;gap:10px;min-height:44px;text-align:left;font-size:13px;color:inherit;padding:0}
+.wn-banner-main>span{flex:1}.wn-short{display:none}
+.wn-banner b{display:inline-flex;align-items:center;gap:2px;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
+.wn-banner-x{width:44px;height:44px;display:grid;place-items:center;flex-shrink:0}
+@media(max-width:760px){.wn-backdrop{padding:12px;align-items:flex-start}.wn-card{padding:20px;max-height:calc(100dvh - 24px);margin-top:max(0px,env(safe-area-inset-top))}.wn-banner{padding-left:16px;gap:8px}.wn-banner-main{gap:8px}.wn-long{display:none}.wn-short{display:inline}}

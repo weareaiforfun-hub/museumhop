@@ -142,8 +142,10 @@ function Spotlight({ spot, step, steps, onBack, onNext, onJump, onClose }: { spo
 /** First-visit intro, the spotlight tour and the help drawer. `show` moves the app to the place a step needs. */
 export type HelpTab = "what" | "do" | "data";
 
-export function Onboarding({ hold, show, inNight, helpOpen, setHelpOpen, helpTab }: { hold?: boolean; show: (p: Place) => void; inNight: boolean; helpOpen: boolean; setHelpOpen: (v: boolean) => void; helpTab?: HelpTab }) {
-  const [slide, setSlide] = useState<number | null>(introSeen() ? null : 0);
+export function Onboarding({ hold, skipIntro, show, inNight, helpOpen, setHelpOpen, helpTab }: { hold?: boolean; skipIntro?: boolean; show: (p: Place) => void; inNight: boolean; helpOpen: boolean; setHelpOpen: (v: boolean) => void; helpTab?: HelpTab }) {
+  // skipIntro: the "what's next" pop-up greets first-time visitors instead (Museumnacht is over); the intro stays under ?.
+  const [slide, setSlide] = useState<number | null>(introSeen() || skipIntro ? null : 0);
+  useEffect(() => { if (skipIntro) markSeen(); }, []);
   const [hint, setHint] = useState(false), [tour, setTour] = useState<number | null>(null), [single, setSingle] = useState<Spot | null>(null);
   const [tab, setTab] = useState<HelpTab>("what");
   useEffect(() => { if (helpOpen && helpTab) setTab(helpTab); }, [helpOpen, helpTab]);
@@ -247,12 +249,13 @@ function YourData() {
         <li>Your reactions, notes, routes, votes, crews and meet-up points</li>
         <li>A list of changes in your night, so your group sees who changed what</li>
       </ul>
-      <p><b>Just looking around?</b> Then MuseumHop keeps nothing about you. An anonymous sign-in (no name, email or password) is made only when you create or join a night.</p>
+      <p><b>Just looking around?</b> Then MuseumHop keeps nothing about you, unless you send a wish (below). An anonymous sign-in (no name, email or password) is made only when you create or join a night.</p>
       <p><b>Not kept:</b> your phone number, contacts or location. No ads and no tracking cookies.</p>
       <p><b>Your location</b>, only if you tap the arrow on the map: your phone works out the blue dot and the walking times, and the location never leaves it. It isn’t sent to your group, to MuseumHop or anyone else, and it’s forgotten when you close the page. “Open in Google Maps” hands the route’s addresses to Google Maps; Google then sees what you do there.</p>
       <p><b>Usage statistics:</b> a cookie-free counter run by MuseumHop’s maker (not Google or an ad network) notes which pages and features get used, for example “a route was adopted” or “the map was opened”, plus the browser, device type, country and the site or campaign link that brought you here. It never receives names, notes, search text, invite links or personal links. Add <code>?notrack=1</code> to the address to switch it off in this browser.</p>
       <p><b>Your email</b>, only if you ask us to email your personal link: MuseumHop keeps a fingerprint of the address (to recognise it when you ask for a new link), never the address itself. Your group never sees it.</p>
-      <p><b>In this browser:</b> who you are, your nights and changes waiting to sync. Clearing your browser removes them, which is why a personal link helps.</p>
+      <p><b>Your wish</b>, only if you send one from the “What should I build next?” box: the events you picked, what you wrote, and your email only if you added one, used only to reply to you. A wish isn’t linked to your night or your sign-in, and nothing else about you (such as your IP address) is stored with it. Only the developer reads wishes, to decide what to build next. They’re stored in the EU and deleted after a year; <a href={CONTACT}>email the developer</a> to have yours deleted sooner.</p>
+      <p><b>In this browser:</b> who you are, your nights, changes waiting to sync, and whether you’ve seen the “what’s next” message. Clearing your browser removes them, which is why a personal link helps.</p>
     </section>
     <section>
       <h3>How long</h3>
