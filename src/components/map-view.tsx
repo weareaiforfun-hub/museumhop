@@ -19,17 +19,10 @@ type Leaflet = any; // loaded from the CDN at runtime, as before
 let leafletLoading: Promise<void> | null = null;
 function loadLeaflet() {
   if ((window as any).L) return Promise.resolve();
-  leafletLoading ??= new Promise<void>((resolve, reject) => {
-    const css = document.createElement("link");
-    css.rel = "stylesheet";
-    css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-    document.head.appendChild(css);
-    const script = document.createElement("script");
-    script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-    script.onload = () => resolve();
-    script.onerror = () => { leafletLoading = null; reject(new Error("Map library could not load.")); };
-    document.head.appendChild(script);
-  });
+  // Bundled with the site rather than loaded from a CDN, so no visitor's IP address goes to a third party for it.
+  leafletLoading ??= Promise.all([import("leaflet"), import("leaflet/dist/leaflet.css")])
+    .then(([mod]) => { (window as any).L = (mod as any).default ?? mod; })
+    .catch(() => { leafletLoading = null; throw new Error("Map library could not load."); });
   return leafletLoading;
 }
 
