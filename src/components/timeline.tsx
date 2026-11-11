@@ -149,7 +149,7 @@ export function Timeline({ stops, title, onReschedule, onPropose, onPreview, onP
         })}
       </div>
       <button className="text-button tl-ics" onClick={download}><CalendarPlus size={14} />Add to my calendar (.ics)</button>
-      <p className="tl-note">Travel times come from OpenStreetMap routing between venues{mode === "bike" ? ", plus 2 min to lock your bike" : mode === "car" ? ", plus 10 min per leg to park" : ""}. They're estimates, without queues. Light bars show when each activity is on.{onOps ? " Tap a leg to go another way for just that one." : ""}</p>
+      <p className="tl-note">Travel times come from routing on <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> data (© OpenStreetMap contributors) between venues{mode === "bike" ? ", plus 2 min to lock your bike" : mode === "car" ? ", plus 10 min per leg to park" : ""}. They're estimates, without queues. Light bars show when each activity is on.{onOps ? " Tap a leg to go another way for just that one." : ""}</p>
     </section>
   );
 }

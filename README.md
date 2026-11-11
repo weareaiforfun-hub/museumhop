@@ -9,6 +9,8 @@ walking times, and live sync between friends. Not affiliated with Museumnacht Am
 - Supabase (shared **to-one** project, tables prefixed `na_`): anonymous sign-in, Row Level Security per night,
   Realtime for live updates and presence. Schema: `supabase/migrations/20261101180000_night_atlas.sql`.
 - Walking times between venues: `src/data/walk.json`, built once with `npm run walk-matrix` (OSRM foot profile).
+  Travel times are derived from OpenStreetMap data, © OpenStreetMap contributors, and are available under the
+  [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/).
 
 ## How it holds together
 - A **night** is one friend group. You reach it only through its invite link (`#night=<token>`; the database stores
