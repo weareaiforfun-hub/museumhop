@@ -460,6 +460,12 @@
 .wn-inline{padding:0;font:inherit;color:var(--ink);font-weight:700;text-decoration:underline;text-underline-offset:3px}
 .wn-check{width:56px;height:56px;border-radius:50%;background:var(--lime);display:grid;place-items:center}
 .wn-link{align-self:center;display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:15px;font-weight:700;text-decoration:underline;text-underline-offset:3px;color:var(--ink)}
+.wn-sites{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.wn-card a.wn-site,.wn-site{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:58px;padding:9px 14px;border:1.5px solid #c9d0c6;border-radius:14px;background:#fff;color:var(--ink);text-decoration:none;text-align:left}
+.wn-card a.wn-site:hover{border-color:var(--ink)}.wn-site.off{opacity:.6}
+.wn-site>span{display:flex;flex-direction:column;gap:1px}.wn-site b{font-size:16px;font-weight:800}.wn-site small{font-size:13.5px;font-weight:500;color:#5b5850}
+.wn-banner a{font-weight:700;color:inherit;text-decoration:underline;text-underline-offset:3px;display:inline-flex;align-items:center;gap:1px}
+.wn-banner-wish{margin-left:auto;font-size:13px;font-weight:700;text-decoration:underline;text-underline-offset:3px;color:inherit;padding:0 4px;min-height:44px;white-space:nowrap}
 .wn-banner{display:flex;align-items:center;gap:10px;padding:0 10px 0 30px;min-height:44px;background:var(--lime);color:var(--ink);font-size:13px;border-bottom:1px solid #cfdc9a}
 .wn-banner-main{flex:1;display:flex;align-items:center;gap:10px;min-height:44px;text-align:left;font-size:13px;color:inherit;padding:0}
 .wn-banner-main>span{flex:1}.wn-short{display:none}
