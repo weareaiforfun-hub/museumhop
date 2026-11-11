@@ -3,13 +3,16 @@ import { ArrowUpRight, Check, Share2, Sparkles, X } from "lucide-react";
 import { sync } from "../lib/sync";
 import { track } from "../lib/track";
 
-/** After Museumnacht: tells visitors what's next (ArtHop) and asks what to build after that. Shown once per browser as
- *  a pop-up, then as a slim banner. Wishes go to na_send_wish (supabase/migrations/20261109090000_wishes.sql). */
+/** After Museumnacht: points visitors to the next planners (DocuHop, ArtHop) and asks what to build after that. Shown
+ *  once per browser as a pop-up, then as a slim banner. Wishes go to na_send_wish (supabase/migrations/20261109090000_wishes.sql). */
 const SEEN = "mh:next-seen", BANNER_OFF = "mh:next-banner-off", SENT = "mh:wish-sent";
-/** Fill in once ArtHop is live: the pop-up and the banner then link to it. */
-export const ARTHOP_URL = "";
+/** The sister sites. A site with an empty url shows as "coming" and isn't linked. Links carry a ?from= tag for the stats. */
+const SITES = [
+  { key: "docuhop", name: "DocuHop", event: "IDFA", dates: "12–22 Nov", url: "https://docuhop.arian-shafa.xyz/" },
+  { key: "arthop", name: "ArtHop", event: "Amsterdam Art Week", dates: "18–22 Nov", url: "https://arthop.arian-shafa.xyz/" },
+];
+const link = (url: string, where: string) => url + "?from=museumhop-" + where;
 const EVENTS = [
-  { key: "idfa", label: "IDFA" },
   { key: "ade", label: "ADE" },
   { key: "kingsday", label: "King’s Day" },
   { key: "monumentendag", label: "Open Monumentendag" },
@@ -79,14 +82,15 @@ export function WhatsNext({ paused, onClose, onYourData }: { paused?: boolean; o
         <span className="wn-check"><Check size={28} /></span>
         <h2 id="wn-title">Got it. Thank you!</h2>
         <p>I read every wish. The most-wanted ones get built first.</p>
-        <p>{ARTHOP_URL ? <>ArtHop is live. <a href={ARTHOP_URL} target="_blank" rel="noopener">Open ArtHop<ArrowUpRight size={14} /></a></> : "ArtHop goes live mid-November. You’ll see it right here."}</p>
+        <Sites where="thanks" />
         <button className="wn-btn" autoFocus onClick={() => close("done")}>Back to MuseumHop</button>
         <button className="wn-link" onClick={share}><Share2 size={15} />Share MuseumHop with a friend</button>
         {shared && <small className="wn-small" role="status">{shared}</small>}
       </div> : <form className="wn-form" onSubmit={send}>
         <span className="wn-tag"><Sparkles size={14} />Thank you for hopping</span>
-        <h2 id="wn-title">Museumnacht is over. ArtHop is next.</h2>
-        <p className="wn-p">I’m building a planner for Amsterdam Art Week, 18–22 Nov.{ARTHOP_URL && <> <a href={ARTHOP_URL} target="_blank" rel="noopener">Open ArtHop<ArrowUpRight size={14} /></a></>}</p>
+        <h2 id="wn-title">Museumnacht is over. Two new planners are live.</h2>
+        <p className="wn-p">The same idea, for two more Amsterdam events: plan with friends on a real map.</p>
+        <Sites where="popup" />
         <fieldset className="wn-wish">
           <legend>What should I build next?</legend>
           <div className="wn-chips">{EVENTS.map((ev) => {
@@ -102,18 +106,34 @@ export function WhatsNext({ paused, onClose, onYourData }: { paused?: boolean; o
         {error && <p className="dialog-error" role="alert">{error}</p>}
         <button className="wn-btn" disabled={!typed || busy}>{busy ? "Sending…" : "Send my wish"}</button>
         <p className="wn-small">Only used to decide what to build next. Stored in the EU. Ask me to delete it any time. <button type="button" className="wn-inline" onClick={onYourData}>Your data</button></p>
-        <p className="wn-small">ArtHop is an unofficial fan project, not affiliated with Amsterdam Art Week.</p>
+        <p className="wn-small">DocuHop and ArtHop are unofficial fan projects, not affiliated with IDFA or Amsterdam Art Week.</p>
       </form>}
     </section>
   </div>;
 }
 
+/** The sister sites as tappable rows: name, event and dates. */
+function Sites({ where }: { where: string }) {
+  return <ul className="wn-sites">{SITES.map((x) => <li key={x.key}>{x.url
+    ? <a className="wn-site" href={link(x.url, where)} target="_blank" rel="noopener" onClick={() => track("next-site", { site: x.key, where })}>
+        <span><b>{x.name}</b><small>{x.event} · {x.dates}</small></span><ArrowUpRight size={18} />
+      </a>
+    : <span className="wn-site off"><span><b>{x.name}</b><small>{x.event} · {x.dates} · coming soon</small></span></span>}</li>)}</ul>;
+}
+
 /** On later visits: one slim line instead of the pop-up. */
 export function NextBanner({ onOpen, onHide }: { onOpen: () => void; onHide: () => void }) {
+  const live = SITES.filter((x) => x.url);
+  const to = (x: (typeof SITES)[number], label: string) =>
+    <a key={x.key} href={link(x.url, "banner")} target="_blank" rel="noopener" onClick={() => track("next-site", { site: x.key, where: "banner" })}>{label}<ArrowUpRight size={13} /></a>;
   return <div className="wn-banner">
     <Sparkles size={15} />
-    {ARTHOP_URL
-      ? <a className="wn-banner-main" href={ARTHOP_URL} target="_blank" rel="noopener"><span><span className="wn-long">ArtHop is live: plan Amsterdam Art Week, 18–22 Nov</span><span className="wn-short">ArtHop is live</span></span><b>Open<ArrowUpRight size={13} /></b></a>
+    {live.length
+      ? <span className="wn-banner-main">
+          <span className="wn-long">New: {live.map((x, i) => <span key={x.key}>{i > 0 && " and "}{to(x, x.name)} for {x.event === "Amsterdam Art Week" ? "Art Week" : x.event}</span>)}</span>
+          <span className="wn-short">New: {live.map((x, i) => <span key={x.key}>{i > 0 && " · "}{to(x, x.name)}</span>)}</span>
+          <button className="wn-banner-wish wn-long" onClick={() => { track("next-banner"); onOpen(); }}>Share a wish</button>
+        </span>
       : <button className="wn-banner-main" onClick={() => { track("next-banner"); onOpen(); }}><span><span className="wn-long">ArtHop is coming for Amsterdam Art Week, 18–22 Nov</span><span className="wn-short">ArtHop is coming, 18–22 Nov</span></span><b>Share a wish</b></button>}
     <button className="wn-banner-x" aria-label="Hide this message" onClick={() => { put(BANNER_OFF, "1"); track("next-banner-hide"); onHide(); }}><X size={15} /></button>
   </div>;
