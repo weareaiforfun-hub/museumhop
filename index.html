@@ -21,12 +21,23 @@
     <meta name="twitter:image" content="https://arian-shafa.xyz/og/museumhop.jpg" />
     <link rel="icon" href="./favicon.svg" />
     <title>MuseumHop · plan a museum night together</title>
-    <!-- Structured data for search engines and AI answers: what MuseumHop is (a free planner) and the event it's about.
+    <link rel="canonical" href="https://museumhop.arian-shafa.xyz/" />
+    <!-- Structured data for search engines and AI answers: the site's name (so results show "MuseumHop", not the bare
+         address), what MuseumHop is (a free planner) and the event it's about.
          The organiser is N8, not MuseumHop. Update the Event (or remove it) for the next edition. -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://museumhop.arian-shafa.xyz/#website",
+          "name": "MuseumHop",
+          "url": "https://museumhop.arian-shafa.xyz/",
+          "description": "Explore 310 activities and 69 museums, react to your friends' picks, and plan a shared Amsterdam Museum Night route.",
+          "inLanguage": "en",
+          "publisher": { "@type": "Person", "name": "Arian Shafa", "url": "https://arian-shafa.xyz/" }
+        },
         {
           "@type": "WebApplication",
           "@id": "https://museumhop.arian-shafa.xyz/#app",
