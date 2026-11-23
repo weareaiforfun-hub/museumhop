@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://museumhop.arian-shafa.xyz/sitemap.xml
